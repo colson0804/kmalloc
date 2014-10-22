@@ -17,4 +17,3 @@ Maximum bytes allocated: 7461135
 5.trace.new: Longest trace. High churn.
 100000 allocations, 100000 deallocations
 Maximum bytes allocated: 5801011
-

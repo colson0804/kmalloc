@@ -49,7 +49,18 @@
  *  structures and arrays, line everything up in neat columns.
  */
 
+typedef struct 
+{
+  int pageId;
+  void* base;
+  int size;
+  void* prev;
+  void* next;
+} free_block;
+
 /************Global Variables*********************************************/
+
+free_block* firstFree = NULL;
 
 /************Function Prototypes******************************************/
 
@@ -57,16 +68,59 @@
 
 /**************Implementation***********************************************/
 
+free_block* findNextFreeBlock(size){
+  free_block* node = firstFree;
+
+  if (firstFree == NULL){
+    firstFree = SOMETHING;
+  }
+
+  while((node != NULL) && (node->size < size)){
+    node = node->next;
+  }
+
+  if (node == NULL){
+
+  }
+
+  return node;
+}
+
 void*
 kma_malloc(kma_size_t size)
-{
-  return NULL;
+{ 
+
+  free_block* nextFree;
+
+  nextFree = findNextFreeBlock(size);
+
+  if (nextFree->size == size){
+    if(nextFree->prev != NULL){
+      nextFree->prev->next = nextFree->next;
+    }
+    if (nextFree->next !=NULL){
+      nextFree->next->prev = nextFree->prev
+    }
+  }
+  else{
+    nextFree->base = nextFree->base + size;
+    nextFree->size = nextFree->size - size;
+  }
+  return nextFree->base;
+
+
 }
 
 void
 kma_free(void* ptr, kma_size_t size)
 {
-  ;
+  kma_page_t* page;
+  
+  page = *((kma_page_t**)(ptr - sizeof(kma_page_t*)));
+
+  free_page(page);
+
+  //NEED TO COALESCE
 }
 
 #endif // KMA_RM
