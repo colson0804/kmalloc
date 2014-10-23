@@ -49,13 +49,10 @@
  *  structures and arrays, line everything up in neat columns.
  */
 
-typedef struct 
+typedef struct resource_map
 {
-  int pageId;
-  void* base;
   int size;
-  void* prev;
-  void* next;
+  struct resource_map* nextBase;
 } free_block;
 
 /************Global Variables*********************************************/
@@ -68,20 +65,45 @@ free_block* firstFree = NULL;
 
 /**************Implementation***********************************************/
 
-free_block* findNextFreeBlock(size){
+void* findNextFreeBlock(size){
+  if (firstFree == NULL){
+     kma_page_t* node = get_page();
+
+    *((kma_page_t**)node->ptr) = node;
+    
+    if ((size + sizeof(kma_page_t*)) > node->size) { // requested size too large
+      free_page(node);
+      return NULL;
+    }
+    free_block* newBlock;
+    newBlock = (free_block*) node;
+    newBlock->size = size;
+    firstFree = newBlock;
+    return (free_block*) node;
+  }
+
   free_block* node = firstFree;
 
-  if (firstFree == NULL){
-    firstFree = SOMETHING;
+  while(node->nextBase != NULL){
+    if (node->nextBase->size < size) {
+      return node;
+    }
+    else
+      node = node->nextBase;
   }
 
-  while((node != NULL) && (node->size < size)){
-    node = node->next;
-  }
+  node->nextBase = (free_block*) get_page();
 
-  if (node == NULL){
-
+  *((kma_page_t**)((kma_page_t*)node)->ptr) = (kma_page_t*)node;
+  
+  if ((size + sizeof(kma_page_t*)) > node->size) { // requested size too large
+    free_page((kma_page_t*)node);
+    return NULL;
   }
+  free_block* newBlock = NULL;
+  newBlock->nextBase = NULL;
+  newBlock->size = size-8;
+  node->nextBase = newBlock;
 
   return node;
 }
@@ -89,38 +111,73 @@ free_block* findNextFreeBlock(size){
 void*
 kma_malloc(kma_size_t size)
 { 
+  free_block* nextIsFree;
 
-  free_block* nextFree;
+  printf("Malloc for size: %d", size);
 
-  nextFree = findNextFreeBlock(size);
+  nextIsFree = findNextFreeBlock(size);
+  
+  if (nextIsFree == NULL)
+    return NULL;
 
-  if (nextFree->size == size){
-    if(nextFree->prev != NULL){
-      nextFree->prev->next = nextFree->next;
-    }
-    if (nextFree->next !=NULL){
-      nextFree->next->prev = nextFree->prev
-    }
-  }
+  if(nextIsFree->nextBase->size == size)
+    nextIsFree->nextBase = nextIsFree->nextBase->nextBase;
   else{
-    nextFree->base = nextFree->base + size;
-    nextFree->size = nextFree->size - size;
+    nextIsFree->nextBase->size = nextIsFree->nextBase->size - size;
+    nextIsFree->nextBase = nextIsFree->nextBase + (size/4);
   }
-  return nextFree->base;
+  return nextIsFree->nextBase;
+}
 
+free_block* findFreeBlockInsertionPoint(void* ptr){
+  free_block* node = firstFree;
 
+  if (firstFree ==  NULL){
+    return firstFree;
+  }
+
+  while ((node !=NULL) && (node->nextBase < ptr)){
+    node = node->nextBase;
+  }
+
+  return node;
 }
 
 void
 kma_free(void* ptr, kma_size_t size)
 {
-  kma_page_t* page;
-  
-  page = *((kma_page_t**)(ptr - sizeof(kma_page_t*)));
+  free_block* block;
+  free_block* blockBefore;
 
-  free_page(page);
+  blockBefore = findFreeBlockInsertionPoint(ptr);
 
-  //NEED TO COALESCE
+  /* add to list here*/
+  block->nextBase = blockBefore->nextBase;
+  blockBefore->nextBase = block;
+  block->size = size - 8;
+
+  if(blockBefore+8+size == ptr){
+    /*theres a free block right before it*/
+    blockBefore->size += size;
+    blockBefore->nextBase = block->nextBase;
+  } 
+  else if(ptr+8+size == blockBefore->nextBase){
+    /*theres a free block right after it*/
+    block->size += block->nextBase->size + 8;
+    block->nextBase = block->nextBase->nextBase;
+  }
+  else if((ptr+8+size == blockBefore->nextBase) && (blockBefore+8+size == ptr)){
+    /* its between two free blocks*/
+    blockBefore->nextBase = block->nextBase->nextBase;
+    blockBefore->size += size + 8 + block->nextBase->size + 8; 
+  }
+
+  if(block->size + 8 == sizeof(kma_page_t*)){
+    /*Its the size of one page*/
+    blockBefore->nextBase = block->nextBase;
+    free_page(*((kma_page_t**)(block - sizeof(kma_page_t*))));
+  }
+
 }
 
 #endif // KMA_RM
