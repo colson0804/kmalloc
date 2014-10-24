@@ -37,6 +37,7 @@
 /************System include***********************************************/
 #include <assert.h>
 #include <stdlib.h>
+#include <stdio.h>
 
 /************Private include**********************************************/
 #include "kma_page.h"
@@ -57,7 +58,7 @@ typedef struct resource_map
 
 /************Global Variables*********************************************/
 
-free_block* firstFree = NULL;
+static free_block* firstFree = NULL;
 
 /************Function Prototypes******************************************/
 
@@ -66,23 +67,33 @@ free_block* firstFree = NULL;
 /**************Implementation***********************************************/
 
 void* findNextFreeBlock(size){
-  if (firstFree == NULL){
-     kma_page_t* node = get_page();
+  if (firstFree->nextBase == NULL){
+    /* If firstFree is undefined, point it to the top of the page */
+     kma_page_t* page = get_page();
 
-    *((kma_page_t**)node->ptr) = node;
+    *((kma_page_t**)page->ptr) = page;
     
-    if ((size + sizeof(kma_page_t*)) > node->size) { // requested size too large
-      free_page(node);
+    if ((size + sizeof(kma_page_t*)) > page->size) {
+    // requested size larger than page
+      free_page(page);
       return NULL;
     }
+    // Set aside free block that we need to allocate
     free_block* newBlock;
-    newBlock = (free_block*) node;
-    newBlock->size = size;
-    firstFree = newBlock;
-    return (free_block*) node;
+    newBlock = (free_block*) page;
+    newBlock->size = page->size;  // Should be page size
+    newBlock->nextBase = NULL;
+    //firstFree = (free_block*) {.size = -1, .nextBase = newBlock};
+    firstFree->nextBase = newBlock;
+    // Return pointer to top of page, w/ all of relevant info
+    return firstFree;
   }
 
   free_block* node = firstFree;
+
+  // if (node->nextBase == NULL) {
+  //   return firstFree;
+  // } 
 
   while(node->nextBase != NULL){
     if (node->nextBase->size < size) {
@@ -120,23 +131,38 @@ kma_malloc(kma_size_t size)
   if (nextIsFree == NULL)
     return NULL;
 
-  if(nextIsFree->nextBase->size == size)
+  // if(nextIsFree->nextBase == NULL) {
+  //   // Not technically a 'next' free page, but we need 
+  //   // to adjust firstFree
+  //   firstFree->nextBase += size/4;
+  //   firstFree->size = firstFree->size - size;
+  //   return firstFree;
+  // }
+  if(nextIsFree->nextBase->size == size) {
     nextIsFree->nextBase = nextIsFree->nextBase->nextBase;
-  else{
+  } else {
     nextIsFree->nextBase->size = nextIsFree->nextBase->size - size;
     nextIsFree->nextBase = nextIsFree->nextBase + (size/4);
   }
+
+  // if (nextIsFree == firstFree) {
+  //   // If the block we are allocating is the first free block,
+  //     // we should change the pointer
+  //   firstFree = 
+  // }
+
   return nextIsFree->nextBase;
 }
 
 free_block* findFreeBlockInsertionPoint(void* ptr){
   free_block* node = firstFree;
+  free_block* ptrToFree = ptr;
 
   if (firstFree ==  NULL){
     return firstFree;
   }
 
-  while ((node !=NULL) && (node->nextBase < ptr)){
+  while ((node !=NULL) && (node->nextBase < ptrToFree)){
     node = node->nextBase;
   }
 
@@ -146,7 +172,7 @@ free_block* findFreeBlockInsertionPoint(void* ptr){
 void
 kma_free(void* ptr, kma_size_t size)
 {
-  free_block* block;
+  free_block* block = NULL;
   free_block* blockBefore;
 
   blockBefore = findFreeBlockInsertionPoint(ptr);
