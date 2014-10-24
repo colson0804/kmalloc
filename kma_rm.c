@@ -58,7 +58,7 @@ typedef struct resource_map
 
 /************Global Variables*********************************************/
 
-static free_block* firstFree = NULL;
+static kma_page_t* pageHeader = NULL;
 
 /************Function Prototypes******************************************/
 
@@ -67,7 +67,7 @@ static free_block* firstFree = NULL;
 /**************Implementation***********************************************/
 
 void* findNextFreeBlock(size){
-  if (firstFree->nextBase == NULL){
+  if (pageHeader == NULL){
     /* If firstFree is undefined, point it to the top of the page */
      kma_page_t* page = get_page();
 
@@ -79,44 +79,54 @@ void* findNextFreeBlock(size){
       return NULL;
     }
     // Set aside free block that we need to allocate
-    free_block* newBlock;
-    newBlock = (free_block*) page;
-    newBlock->size = page->size;  // Should be page size
-    newBlock->nextBase = NULL;
-    //firstFree = (free_block*) {.size = -1, .nextBase = newBlock};
-    firstFree->nextBase = newBlock;
-    // Return pointer to top of page, w/ all of relevant info
-    return firstFree;
+    pageHeader = page;
+    pageHeader->ptr = page->ptr + sizeof(kma_page_t*) + size;
+
+    free_block * freeBlock = (free_block*) pageHeader->ptr;
+    freeBlock->size = page->size - sizeof(kma_page_t*) - sizeof(free_block*) - size;
+    freeBlock->nextBase = NULL;
+    return page->ptr + sizeof(kma_page_t*);
   }
 
-  free_block* node = firstFree;
+  // free_block* node = firstFree;
 
-  // if (node->nextBase == NULL) {
-  //   return firstFree;
-  // } 
+  // // if (node->nextBase == NULL) {
+  // //   return firstFree;
+  // // } 
 
-  while(node->nextBase != NULL){
-    if (node->nextBase->size < size) {
-      return node;
-    }
-    else
-      node = node->nextBase;
-  }
+  // while(node->nextBase != NULL){
+  //   if (node->nextBase->size < size) {
+  //     return node;
+  //   }
+  //   else
+  //     node = node->nextBase;
+  // }
 
-  node->nextBase = (free_block*) get_page();
 
-  *((kma_page_t**)((kma_page_t*)node)->ptr) = (kma_page_t*)node;
+
+  // node->nextBase = (free_block*) get_page();
+
+  // *((kma_page_t**)((kma_page_t*)node)->ptr) = (kma_page_t*)node;
   
-  if ((size + sizeof(kma_page_t*)) > node->size) { // requested size too large
-    free_page((kma_page_t*)node);
-    return NULL;
-  }
-  free_block* newBlock = NULL;
-  newBlock->nextBase = NULL;
-  newBlock->size = size-8;
-  node->nextBase = newBlock;
+  // if ((size + sizeof(kma_page_t*)) > node->size) { // requested size too large
+  //   free_page((kma_page_t*)node);
+  //   return NULL;
+  // }
+  // free_block* newBlock = NULL;
+  // newBlock->nextBase = NULL;
+  // newBlock->size = size-8;
+  // node->nextBase = newBlock;
 
   return node;
+}
+
+void removeFromList(free_block* nextIsFree) {
+  if(nextIsFree->nextBase->size == size) {
+    nextIsFree->nextBase = nextIsFree->nextBase->nextBase;
+  } else {
+    nextIsFree->nextBase->size = nextIsFree->nextBase->size - size;
+    nextIsFree->nextBase = nextIsFree->nextBase + (size/4);
+  }
 }
 
 void*
@@ -124,32 +134,12 @@ kma_malloc(kma_size_t size)
 { 
   free_block* nextIsFree;
 
-  printf("Malloc for size: %d", size);
-
   nextIsFree = findNextFreeBlock(size);
   
   if (nextIsFree == NULL)
     return NULL;
 
-  // if(nextIsFree->nextBase == NULL) {
-  //   // Not technically a 'next' free page, but we need 
-  //   // to adjust firstFree
-  //   firstFree->nextBase += size/4;
-  //   firstFree->size = firstFree->size - size;
-  //   return firstFree;
-  // }
-  if(nextIsFree->nextBase->size == size) {
-    nextIsFree->nextBase = nextIsFree->nextBase->nextBase;
-  } else {
-    nextIsFree->nextBase->size = nextIsFree->nextBase->size - size;
-    nextIsFree->nextBase = nextIsFree->nextBase + (size/4);
-  }
-
-  // if (nextIsFree == firstFree) {
-  //   // If the block we are allocating is the first free block,
-  //     // we should change the pointer
-  //   firstFree = 
-  // }
+  removeFromList(nextIsFree);
 
   return nextIsFree->nextBase;
 }
