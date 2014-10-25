@@ -112,7 +112,7 @@ kma_malloc(kma_size_t size)
 
     // Set new freeblock to end of block we're allocating
     free_block* freeBlock = (free_block*) pageHeader->ptr;
-    freeBlock->size = page->size - sizeof(kma_page_t*) - sizeof(free_block*) - size;
+    freeBlock->size = page->size - sizeof(kma_page_t*) - size;
     freeBlock->nextBase = NULL;
     return page + sizeof(kma_page_t*);
     //return freeBlock;
@@ -171,16 +171,16 @@ free_block* findFreeBlockInsertionPoint(void* ptr){
 
 free_block* coalesce(free_block* prevFreeBlock, free_block* newNode) {
   
-  if (prevFreeBlock + sizeof(free_block*) + prevFreeBlock->size == newNode && newNode + sizeof(free_block*) + newNode->size == newNode->nextBase) {  // Both previous and next node are free
-    prevFreeBlock->size = prevFreeBlock->size + 2 * sizeof(free_block*) + newNode->size + newNode->nextBase->size;
+  if (prevFreeBlock + prevFreeBlock->size == newNode && newNode + newNode->size == newNode->nextBase) {  // Both previous and next node are free
+    prevFreeBlock->size = prevFreeBlock->size + newNode->size + newNode->nextBase->size;
     prevFreeBlock->nextBase = newNode->nextBase->nextBase;
     return prevFreeBlock;
-  } else if (prevFreeBlock + sizeof(free_block*) + prevFreeBlock->size == newNode) { // Free block before it
-    prevFreeBlock->size = prevFreeBlock->size + sizeof(free_block*) + newNode->size;
+  } else if (prevFreeBlock + prevFreeBlock->size == newNode) { // Free block before it
+    prevFreeBlock->size = prevFreeBlock->size + newNode->size;
     prevFreeBlock->nextBase = newNode->nextBase;
     return prevFreeBlock;
-  } else if (newNode + sizeof(free_block*) + newNode->size == newNode->nextBase) { // Free block after it
-    newNode->size = newNode->size + sizeof(free_block*) + newNode->nextBase->size;
+  } else if (newNode + newNode->size == newNode->nextBase) { // Free block after it
+    newNode->size = newNode->size + newNode->nextBase->size;
     newNode->nextBase = newNode->nextBase->nextBase;
     return newNode;
   }
@@ -206,12 +206,12 @@ void kma_free(void* ptr, kma_size_t size) {
     newNode->nextBase = prevFreeBlock->nextBase;
     prevFreeBlock->nextBase = newNode;
 
-    newNode->size = size - sizeof(free_block*);
+    newNode->size = size;
 
     startOfFreeMemory = coalesce(prevFreeBlock, newNode);
   }
   // Handle possible free pages
-  if (startOfFreeMemory->size + sizeof(free_block*) == PAGESIZE - sizeof(kma_page_t*)) {
+  if (startOfFreeMemory->size == PAGESIZE - sizeof(kma_page_t*)) {
     if (pageHeader->ptr == startOfFreeMemory) {
       pageHeader = BASEADDR(startOfFreeMemory->nextBase);
       pageHeader->ptr = startOfFreeMemory->nextBase;
