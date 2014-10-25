@@ -66,10 +66,35 @@ static kma_page_t* pageHeader = NULL;
 
 /**************Implementation***********************************************/
 
+void removeFreeFromList(free_block* prevNode, kma_size_t size) {
+  // If prevBlock is NULL, then previous is pageHeader
+
+  if (prevNode == NULL) {
+    // PREVNODE IS PAGE HEADER
+    free_block* currNode = pageHeader->ptr;
+    if (currNode->size == size) {
+      pageHeader->ptr = currNode->nextBase;
+    } else {
+      pageHeader->ptr += size;
+      currNode->size = currNode->size - size;
+    }
+  } else {
+    free_block* currNode = prevNode->nextBase;
+    // If size allocated == size available, remove node
+    if (currNode->size == size) {
+      prevNode->nextBase = currNode->nextBase;
+    } else {
+      prevNode->nextBase += size; //REALLY NOT SURE
+      currNode->size = currNode->size - size;
+    }
+  }
+  return;
+}
+
 void* findNextFreeBlock(size){
   if (pageHeader == NULL){
     /* If firstFree is undefined, point it to the top of the page */
-     kma_page_t* page = get_page();
+    kma_page_t* page = get_page();
 
     *((kma_page_t**)page->ptr) = page;
     
@@ -81,51 +106,71 @@ void* findNextFreeBlock(size){
     // PageHeader is placed at beginning of page
       // points to next free block (after what we're allocating)
     pageHeader = page;
-    pageHeader->ptr = page->ptr + sizeof(kma_page_t*) + size;
+    pageHeader->ptr = page + sizeof(kma_page_t*) + size;
 
     // Set new freeblock to end of block we're allocating
     free_block* freeBlock = (free_block*) pageHeader->ptr;
     freeBlock->size = page->size - sizeof(kma_page_t*) - sizeof(free_block*) - size;
     freeBlock->nextBase = NULL;
-    //return page->ptr + sizeof(kma_page_t*);
-    return freeBlock;
+    return page + sizeof(kma_page_t*);
+    //return freeBlock;
     // After this, check if this slot is right after pageHeader
-  }
-
-  // Now execute cases where firstFree has been defined
-  
-
-  return pageHeader;
-
-}
-
-void removeFreeFromList(free_block* nextIsFree, kma_size_t size) {
-  if(nextIsFree->nextBase->size == size) {
-    nextIsFree->nextBase = nextIsFree->nextBase->nextBase;
   } else {
-    nextIsFree->nextBase->size = nextIsFree->nextBase->size - size;
-    nextIsFree->nextBase = nextIsFree->nextBase + (size/4);
+
+    // Now execute cases where firstFree has been defined
+    free_block* node = pageHeader->ptr;
+    // If prevNode is NULL, assume that previous is pageHeader
+    free_block* prevNode = NULL;
+
+    while (node->nextBase != NULL) {
+      if (node->size >= size) { // + 8???
+        // CHANGE FREE LIST
+        removeFreeFromList(prevNode, size);
+        return node;
+      } else {
+        prevNode = node;
+        node = node->nextBase;
+      }
+    }
+    // We're at the end of the free list
+    // Check if there's room to allocate a new block
+      // else create a new page
+    if(node->size >= size) {
+      // Allocate this space
+      // CHANGE FREE LIST
+      removeFreeFromList(prevNode, size);
+      return node;
+    } else {
+      kma_page_t* newPage = get_page();
+      *((kma_page_t**)newPage->ptr) = newPage;
+      if ((size + sizeof(kma_page_t*)) > newPage->size) {
+        // Requested size larger than page
+        free_page(newPage);
+        return NULL;
+      } 
+      node->nextBase = newPage->ptr + sizeof(kma_page_t*);
+      return newPage->ptr;
+    }
   }
 }
 
 void*
 kma_malloc(kma_size_t size)
 { 
-  free_block* nextIsFree;
+  free_block* BlockToAllocate;
 
-  nextIsFree = findNextFreeBlock(size);
+  BlockToAllocate = findNextFreeBlock(size);
   
-  if (nextIsFree == NULL)
-    return NULL;
+  // if (BlockToAllocate == NULL)
+  //   return NULL;
+  printf("Got to here");
+  // if (BlockToAllocate->nextBase == NULL) {
+  //   // RIGHT???
+  //   return pageHeader + sizeof(kma_page_t*);
+  // }
 
-  if (nextIsFree->nextBase == NULL) {
-    // RIGHT???
-    return pageHeader + sizeof(kma_page_t*);
-  }
 
-  removeFreeFromList(nextIsFree, size);
-
-  return nextIsFree->nextBase;
+  return BlockToAllocate;
 }
 
 free_block* findFreeBlockInsertionPoint(void* ptr){
