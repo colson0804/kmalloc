@@ -78,49 +78,28 @@ void* findNextFreeBlock(size){
       free_page(page);
       return NULL;
     }
-    // Set aside free block that we need to allocate
+    // PageHeader is placed at beginning of page
+      // points to next free block (after what we're allocating)
     pageHeader = page;
     pageHeader->ptr = page->ptr + sizeof(kma_page_t*) + size;
 
-    free_block * freeBlock = (free_block*) pageHeader->ptr;
+    // Set new freeblock to end of block we're allocating
+    free_block* freeBlock = (free_block*) pageHeader->ptr;
     freeBlock->size = page->size - sizeof(kma_page_t*) - sizeof(free_block*) - size;
     freeBlock->nextBase = NULL;
-    return page->ptr + sizeof(kma_page_t*);
+    //return page->ptr + sizeof(kma_page_t*);
+    return freeBlock;
+    // After this, check if this slot is right after pageHeader
   }
 
-  // free_block* node = firstFree;
-
-  // // if (node->nextBase == NULL) {
-  // //   return firstFree;
-  // // } 
-
-  // while(node->nextBase != NULL){
-  //   if (node->nextBase->size < size) {
-  //     return node;
-  //   }
-  //   else
-  //     node = node->nextBase;
-  // }
-
-
-
-  // node->nextBase = (free_block*) get_page();
-
-  // *((kma_page_t**)((kma_page_t*)node)->ptr) = (kma_page_t*)node;
+  // Now execute cases where firstFree has been defined
   
-  // if ((size + sizeof(kma_page_t*)) > node->size) { // requested size too large
-  //   free_page((kma_page_t*)node);
-  //   return NULL;
-  // }
-  // free_block* newBlock = NULL;
-  // newBlock->nextBase = NULL;
-  // newBlock->size = size-8;
-  // node->nextBase = newBlock;
 
-  return node;
+  return pageHeader;
+
 }
 
-void removeFromList(free_block* nextIsFree) {
+void removeFreeFromList(free_block* nextIsFree, kma_size_t size) {
   if(nextIsFree->nextBase->size == size) {
     nextIsFree->nextBase = nextIsFree->nextBase->nextBase;
   } else {
@@ -139,60 +118,65 @@ kma_malloc(kma_size_t size)
   if (nextIsFree == NULL)
     return NULL;
 
-  removeFromList(nextIsFree);
+  if (nextIsFree->nextBase == NULL) {
+    // RIGHT???
+    return pageHeader + sizeof(kma_page_t*);
+  }
+
+  removeFreeFromList(nextIsFree, size);
 
   return nextIsFree->nextBase;
 }
 
 free_block* findFreeBlockInsertionPoint(void* ptr){
-  free_block* node = firstFree;
-  free_block* ptrToFree = ptr;
+  // kma_page* node = pageHeader;
+  // free_block* ptrToFree = ptr;
 
-  if (firstFree ==  NULL){
-    return firstFree;
-  }
+  // if (pageHeader ==  NULL) {
+  //   return pageHeader;
+  // }
 
-  while ((node !=NULL) && (node->nextBase < ptrToFree)){
-    node = node->nextBase;
-  }
-
+  // while ((node !=NULL) && (node->nextBase < ptrToFree)) {
+  //   node = node->nextBase;
+  // }
+  free_block* node = NULL;
   return node;
 }
 
 void
 kma_free(void* ptr, kma_size_t size)
 {
-  free_block* block = NULL;
-  free_block* blockBefore;
+  // free_block* block = NULL;
+  // free_block* blockBefore;
 
-  blockBefore = findFreeBlockInsertionPoint(ptr);
+  // blockBefore = findFreeBlockInsertionPoint(ptr);
 
-  /* add to list here*/
-  block->nextBase = blockBefore->nextBase;
-  blockBefore->nextBase = block;
-  block->size = size - 8;
+  // /* add to list here*/
+  // block->nextBase = blockBefore->nextBase;
+  // blockBefore->nextBase = block;
+  // block->size = size - 8;
 
-  if(blockBefore+8+size == ptr){
-    /*theres a free block right before it*/
-    blockBefore->size += size;
-    blockBefore->nextBase = block->nextBase;
-  } 
-  else if(ptr+8+size == blockBefore->nextBase){
-    /*theres a free block right after it*/
-    block->size += block->nextBase->size + 8;
-    block->nextBase = block->nextBase->nextBase;
-  }
-  else if((ptr+8+size == blockBefore->nextBase) && (blockBefore+8+size == ptr)){
-    /* its between two free blocks*/
-    blockBefore->nextBase = block->nextBase->nextBase;
-    blockBefore->size += size + 8 + block->nextBase->size + 8; 
-  }
+  // if(blockBefore+8+size == ptr){
+  //   /*theres a free block right before it*/
+  //   blockBefore->size += size;
+  //   blockBefore->nextBase = block->nextBase;
+  // } 
+  // else if(ptr+8+size == blockBefore->nextBase){
+  //   /*theres a free block right after it*/
+  //   block->size += block->nextBase->size + 8;
+  //   block->nextBase = block->nextBase->nextBase;
+  // }
+  // else if((ptr+8+size == blockBefore->nextBase) && (blockBefore+8+size == ptr)){
+  //   /* its between two free blocks*/
+  //   blockBefore->nextBase = block->nextBase->nextBase;
+  //   blockBefore->size += size + 8 + block->nextBase->size + 8; 
+  // }
 
-  if(block->size + 8 == sizeof(kma_page_t*)){
-    /*Its the size of one page*/
-    blockBefore->nextBase = block->nextBase;
-    free_page(*((kma_page_t**)(block - sizeof(kma_page_t*))));
-  }
+  // if(block->size + 8 == sizeof(kma_page_t*)){
+  //   /*Its the size of one page*/
+  //   blockBefore->nextBase = block->nextBase;
+  //   free_page(*((kma_page_t**)(block - sizeof(kma_page_t*))));
+  // }
 
 }
 
