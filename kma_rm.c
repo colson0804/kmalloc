@@ -108,13 +108,14 @@ kma_malloc(kma_size_t size)
     // PageHeader is placed at beginning of page
       // points to next free block (after what we're allocating)
     pageHeader = page;
-    pageHeader->ptr = page + sizeof(kma_page_t*) + size;
+
+    pageHeader->ptr = (kma_page_t*)(page+(sizeof(kma_page_t) + size)*(sizeof(kma_page_t*)));
 
     // Set new freeblock to end of block we're allocating
     free_block* freeBlock = (free_block*) pageHeader->ptr;
-    freeBlock->size = page->size - sizeof(kma_page_t*) - size;
+    freeBlock->size = page->size - sizeof(kma_page_t) - size;
     freeBlock->nextBase = NULL;
-    return page + sizeof(kma_page_t*);
+    return page + sizeof(kma_page_t);
     //return freeBlock;
     // After this, check if this slot is right after pageHeader
   } else {
