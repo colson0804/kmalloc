@@ -66,23 +66,21 @@
 /************External Declaration*****************************************/
 
 /**************Implementation***********************************************/
-kma_page_t* initializeBitMap(kma_size_t size) {
-	kma_page_t* bitMapPage = get_page();
-	*((kma_page_t**)bitMapPage->ptr) = bitMapPage;
+kma_page_t* initializeFreeList(kma_size_t size) {
+	kma_page_t* freeListPage = get_page();
+	*((kma_page_t**)freeListPage->ptr) = freeListPage;
 
-	if ((size + sizeof(kma_page_t)) > bitMapPage->size) {
+	if ((size + sizeof(kma_page_t)) > freeListPage->size) {
 		// requested size larger than page
-		free_page(bitMapPage);
+		free_page(freeListPage);
 		return NULL;
 	}
-	pageHeader = bitMapPage;
+	pageHeader = freeListPage;
 
-	// Pages consist of header, bitmap, and headers of free list
-	int *bitmap = (int*)((long)pageHeader + sizeof(kma_page_t));
 	// Place free list immediately after bitmap
-	free_block* freeList = (free_block*)(bitmap + sizeof(int) * BITMAPSIZE);
+	free_block* freeList = (free_block*)((long)(pageHeader) + sizeof(kma_page_t));
 
-	return bitMapPage;
+	return freeListPage;
 }
 
 
@@ -90,7 +88,7 @@ void* kma_malloc(kma_size_t size)
 {
   // Initialize free-list and bitmap
   if (!pageHeader) {
-  	initializeBitMap(size);
+  	initializeFreeList(size);
   }
 
   return NULL;
