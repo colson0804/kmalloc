@@ -33,6 +33,8 @@
  ***************************************************************************/
 #ifdef KMA_BUD
 #define __KMA_IMPL__
+#define MINBLOCKSIZE 32
+#define BITMAPSIZE PAGESIZE / MINBLOCKSIZE
 
 /************System include***********************************************/
 #include <assert.h>
@@ -49,22 +51,51 @@
  *  structures and arrays, line everything up in neat columns.
  */
 
+ typedef struct free_list
+ {
+ 	int size;
+ 	struct free_list* nextFree;
+ } free_block;
+
 /************Global Variables*********************************************/
+
+ kma_page_t* pageHeader = NULL;
 
 /************Function Prototypes******************************************/
 	
 /************External Declaration*****************************************/
 
 /**************Implementation***********************************************/
+kma_page_t* initializeBitMap(kma_size_t size) {
+	kma_page_t* bitMapPage = get_page();
+	*((kma_page_t**)bitMapPage->ptr) = bitMapPage;
 
-void*
-kma_malloc(kma_size_t size)
+	if ((size + sizeof(kma_page_t)) > bitMapPage->size) {
+		// requested size larger than page
+		free_page(bitMapPage);
+		return NULL;
+	}
+	pageHeader = bitMapPage;
+
+	// Pages consist of header, bitmap, and headers of free list
+	int bitmap[BITMAPSIZE] = {0};
+	free_block* freeList[8] = {NULL};
+
+	return bitMapPage;
+}
+
+
+void* kma_malloc(kma_size_t size)
 {
+  // Initialize free-list and bitmap
+  if (!pageHeader) {
+  	initializeBitMap(size);
+  }
+
   return NULL;
 }
 
-void 
-kma_free(void* ptr, kma_size_t size)
+void kma_free(void* ptr, kma_size_t size)
 {
   ;
 }
