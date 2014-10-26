@@ -35,10 +35,13 @@
 #define __KMA_IMPL__
 #define MINBLOCKSIZE 32
 #define BITMAPSIZE PAGESIZE / MINBLOCKSIZE
+#define CHAR_BIT 8
 
 /************System include***********************************************/
 #include <assert.h>
 #include <stdlib.h>
+#include <math.h>
+#include <string.h>
 
 /************Private include**********************************************/
 #include "kma_page.h"
@@ -56,6 +59,11 @@
  	int size;
  	struct free_list* nextFree;
  } free_block;
+
+ typedef struct bit 
+ {
+ 	int val: 1;
+ } bit;
 
 /************Global Variables*********************************************/
 
@@ -77,12 +85,41 @@ kma_page_t* initializeFreeList(kma_size_t size) {
 	}
 	pageHeader = freeListPage;
 
-	// Place free list immediately after bitmap
+	// Place free list immediately after header
 	free_block* freeList = (free_block*)((long)(pageHeader) + sizeof(kma_page_t));
+	for (int i=0; i < 8; i++) {
+		freeList[i].size = 32*pow(2, i);
+		freeList[i].nextFree = NULL;
+	}
 
 	return freeListPage;
 }
 
+void set_nth_bit(unsigned char *bitmap, int idx)
+{
+    bitmap[idx / CHAR_BIT] |= 1 << (idx % CHAR_BIT);
+}
+
+void clear_nth_bit(unsigned char *bitmap, int idx)
+{
+    bitmap[idx / CHAR_BIT] &= ~(1 << (idx % CHAR_BIT));
+}
+
+int get_nth_bit(unsigned char *bitmap, int idx)
+{
+    return (bitmap[idx / CHAR_BIT] >> (idx % CHAR_BIT)) & 1;
+}
+
+void addBitMap(kma_page_t* page) {
+	unsigned char bitmap[32] = { 0 };
+	void* destination = (void*)((long)page + 32);
+
+	for (int i = 0; i < 3; i++) {
+		set_nth_bit(bitmap, i);
+	}
+	memcpy(destination, &bitmap, 32);
+
+}
 
 void* kma_malloc(kma_size_t size)
 {
@@ -90,6 +127,26 @@ void* kma_malloc(kma_size_t size)
   if (!pageHeader) {
   	initializeFreeList(size);
   }
+  free_block* freeList = (free_block*)((long)(pageHeader) + sizeof(kma_page_t));
+
+  for (int i=0; i < 8; i++) {
+  	if (freeList[i].size > size) {
+  		//malloc
+  	}
+  }
+
+  // Create a new page
+  kma_page_t* page = get_page();
+
+  *((kma_page_t**)page->ptr) = page;
+
+  if ((size + sizeof(kma_page_t)) > page->size) {
+  // requested size larger than page
+    free_page(page);
+    return NULL;
+  }
+
+ addBitMap(page);
 
   return NULL;
 }
