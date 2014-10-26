@@ -75,8 +75,13 @@ void removeFreeFromList(free_block* prevNode, kma_size_t size) {
     if (currNode->size == size) {
       pageHeader->ptr = currNode->nextBase;
     } else {
-      pageHeader->ptr += size;
-      currNode->size = currNode->size - size;
+      pageHeader->ptr = (free_block*)((long)(pageHeader->ptr)+size); 
+      
+      int currNodeSize = currNode->size;
+      
+      currNode = pageHeader->ptr;
+      currNode->size = currNodeSize - size;
+      currNode->nextBase = NULL;
     }
   } else {
     free_block* currNode = prevNode->nextBase;
@@ -84,8 +89,9 @@ void removeFreeFromList(free_block* prevNode, kma_size_t size) {
     if (currNode->size == size) {
       prevNode->nextBase = currNode->nextBase;
     } else {
-      prevNode->nextBase += size; //REALLY NOT SURE
-      currNode->size = currNode->size - size;
+      prevNode->nextBase =(free_block*)((long)(prevNode->nextBase)+size); //REALLY NOT SURE
+      prevNode->nextBase->size = currNode->size - size;
+      prevNode->nextBase->nextBase = NULL;
     }
   }
   return;
@@ -99,34 +105,32 @@ kma_malloc(kma_size_t size)
     kma_page_t* page = get_page();
 
     *((kma_page_t**)page->ptr) = page;
-    
-    if ((size + sizeof(kma_page_t*)) > page->size) {
+
+    if ((size + sizeof(kma_page_t)) > page->size) {
     // requested size larger than page
       free_page(page);
       return NULL;
     }
     // PageHeader is placed at beginning of page
-      // points to next free block (after what we're allocating)
+    // points to next free block (after what we're allocating)
     pageHeader = page;
 
-    pageHeader->ptr = (kma_page_t*)(page+(sizeof(kma_page_t) + size)*(sizeof(kma_page_t*)));
+    pageHeader->ptr = (free_block*)((long)page + sizeof(kma_page_t) + size);
 
     // Set new freeblock to end of block we're allocating
-    free_block* freeBlock = (free_block*) pageHeader->ptr;
+    free_block* freeBlock = pageHeader->ptr;
     freeBlock->size = page->size - sizeof(kma_page_t) - size;
     freeBlock->nextBase = NULL;
-    return page + sizeof(kma_page_t);
-    //return freeBlock;
-    // After this, check if this slot is right after pageHeader
-  } else {
-
-    // Now execute cases where firstFree has been defined
+    return (kma_page_t*)(((long) page) + sizeof(kma_page_t));
+  } 
+  else {
+    // Now execute cases where pageHeader->ptr is defined
     free_block* node = pageHeader->ptr;
     // If prevNode is NULL, assume that previous is pageHeader
     free_block* prevNode = NULL;
 
     while (node->nextBase != NULL) {
-      if (node->size >= size) { // + 8???
+      if (node->size >= size) {
         // CHANGE FREE LIST
         removeFreeFromList(prevNode, size);
         return node;
@@ -135,6 +139,7 @@ kma_malloc(kma_size_t size)
         node = node->nextBase;
       }
     }
+
     // We're at the end of the free list
     // Check if there's room to allocate a new block
       // else create a new page
@@ -159,9 +164,14 @@ kma_malloc(kma_size_t size)
 
 free_block* findFreeBlockInsertionPoint(void* ptr){
   free_block* node = pageHeader->ptr;
+
+
   
   while (node) {
-    if (node->nextBase == NULL || node->nextBase >= (free_block*) ptr) {
+    if (node->nextBase == NULL){
+      return node;
+    }
+    else if(node->nextBase >= (free_block*) ptr){ 
       return node;
     } else {
       node = node->nextBase;
@@ -196,20 +206,32 @@ void kma_free(void* ptr, kma_size_t size) {
   if (pageHeader==NULL) // Something went wrong
     return;
 
-  if (pageHeader->ptr == NULL) {
+  if (pageHeader->ptr == NULL) { //nothing
     pageHeader->ptr = (free_block*) ptr;
     startOfFreeMemory = pageHeader->ptr;
   } else {
-    prevFreeBlock = findFreeBlockInsertionPoint(ptr);
+    free_block* newNode = NULL;
+    free_block* firstFreeBlock = (free_block*)(pageHeader->ptr);
+    if (firstFreeBlock > (free_block*) ptr){
+      newNode = (free_block*) ptr; 
+      newNode->nextBase = firstFreeBlock;
+      newNode->size = size;
+      pageHeader->ptr = newNode;
 
-    // Insert into list
-    free_block* newNode = (free_block*) ptr;
-    newNode->nextBase = prevFreeBlock->nextBase;
-    prevFreeBlock->nextBase = newNode;
+      startOfFreeMemory = coalesce(newNode, firstFreeBlock);
+    }
+    else{
+      prevFreeBlock = findFreeBlockInsertionPoint(ptr);
 
-    newNode->size = size;
+      // Insert into list
+      newNode = (free_block*) ptr;
+      newNode->nextBase = prevFreeBlock->nextBase;
+      prevFreeBlock->nextBase = newNode;
 
-    startOfFreeMemory = coalesce(prevFreeBlock, newNode);
+      newNode->size = size;
+
+      startOfFreeMemory = coalesce(prevFreeBlock, newNode);
+    }
   }
   // Handle possible free pages
   if (startOfFreeMemory->size == PAGESIZE - sizeof(kma_page_t*)) {
