@@ -130,7 +130,7 @@ kma_malloc(kma_size_t size)
     free_block* prevNode = NULL;
 
     while (node->nextBase != NULL) {
-      if (node->size >= size) {
+      if ((node->size >= size) && (node->size - size > sizeof(free_block))) {
         // CHANGE FREE LIST
         removeFreeFromList(prevNode, size);
         return node;
@@ -143,7 +143,7 @@ kma_malloc(kma_size_t size)
     // We're at the end of the free list
     // Check if there's room to allocate a new block
       // else create a new page
-    if(node->size >= size) {
+    if((node->size >= size)  && (node->size - size > sizeof(free_block))) {
       // Allocate this space
       // CHANGE FREE LIST
       removeFreeFromList(prevNode, size);
@@ -216,17 +216,12 @@ void kma_free(void* ptr, kma_size_t size) {
     
 
     if (firstFreeBlock > (free_block*) ptr){
-
-      /*wait...what the fuck am i doing here again? im suddenly not cheking for size....*/
       newNode = (free_block*) ptr; 
       newNode->nextBase = firstFreeBlock;
       newNode->size = size;
       pageHeader->ptr = newNode;
-
       startOfFreeMemory = coalesce(newNode, firstFreeBlock);
     }
-
-
     else{
       prevFreeBlock = findFreeBlockInsertionPoint(ptr);
 
