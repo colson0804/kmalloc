@@ -236,7 +236,7 @@ void kma_free(void* ptr, kma_size_t size) {
     }
   }
   // Handle possible free pages
-  if (startOfFreeMemory->size == PAGESIZE - sizeof(kma_page_t)) {
+  if (startOfFreeMemory->size == PAGESIZE - sizeof(kma_page_t2)) {
     if (pageHeader->ptr == startOfFreeMemory) {
       pageHeader = BASEADDR(startOfFreeMemory->nextBase);
       pageHeader->ptr = startOfFreeMemory->nextBase;

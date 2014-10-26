@@ -78,8 +78,9 @@ kma_page_t* initializeBitMap(kma_size_t size) {
 	pageHeader = bitMapPage;
 
 	// Pages consist of header, bitmap, and headers of free list
-	int bitmap[BITMAPSIZE] = {0};
-	free_block* freeList[8] = {NULL};
+	int *bitmap = (int*)((long)pageHeader + sizeof(kma_page_t));
+	// Place free list immediately after bitmap
+	free_block* freeList = (free_block*)(bitmap + sizeof(int) * BITMAPSIZE);
 
 	return bitMapPage;
 }
