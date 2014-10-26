@@ -210,9 +210,14 @@ void kma_free(void* ptr, kma_size_t size) {
     pageHeader->ptr = (free_block*) ptr;
     startOfFreeMemory = pageHeader->ptr;
   } else {
+
     free_block* newNode = NULL;
     free_block* firstFreeBlock = (free_block*)(pageHeader->ptr);
+    
+
     if (firstFreeBlock > (free_block*) ptr){
+
+      /*wait...what the fuck am i doing here again? im suddenly not cheking for size....*/
       newNode = (free_block*) ptr; 
       newNode->nextBase = firstFreeBlock;
       newNode->size = size;
@@ -220,6 +225,8 @@ void kma_free(void* ptr, kma_size_t size) {
 
       startOfFreeMemory = coalesce(newNode, firstFreeBlock);
     }
+
+
     else{
       prevFreeBlock = findFreeBlockInsertionPoint(ptr);
 
