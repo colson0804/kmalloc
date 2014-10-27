@@ -144,9 +144,37 @@ kma_page_t* initializePage(kma_size_t size) {
 
   for (int i=0; i < 6; i++) {
   	node = (free_block*)((void*)node + (int)(128*pow(2,i)));
-  	addToFreeList(node, 128*pow(2,i));
+  	addToFreeList(node, 128 * pow(2,i));
   }
   return page;
+}
+
+kma_size_t roundToPowerOfTwo(kma_size_t size) {
+	for (int i=0; i < 8; i++) {
+		if (size < 32*pow(2,i)) {
+			return 32 * pow(2,i);
+		}
+	}
+	return size;
+}
+
+
+
+free_block* allocateSpace(kma_size_t size) {
+	// Find smallest possible block this size can fill
+	free_block* freeList = (free_block*)((void*)pageHeader + sizeof(kma_page_t));
+	kma_size_t sizeOfBlock = roundToPowerOfTwo(size);
+	for (int i=0; i<8; i++) {
+		if (size <= freeList[i].size && freeList[i].nextFree != NULL) {
+			// Remove free node from list
+			free_block* blockToAllocate = freeList[i].nextFree;
+			freeList[i].nextFree = blockToAllocate->nextFree;
+			// Split empty node until 
+			//splitNode(sizeOfBlock, freeList, i);
+			return blockToAllocate;
+		}
+	}
+	return NULL;
 }
 
 void* kma_malloc(kma_size_t size)
@@ -163,6 +191,8 @@ void* kma_malloc(kma_size_t size)
 	}
   }
  kma_page_t* page = initializePage(size);
+ // Actually fill the space
+ allocateSpace(size);
 
   return page->ptr+sizeof(kma_page_t) ; //also bitmap size
 }
