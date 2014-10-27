@@ -71,7 +71,10 @@
 /**************Implementation***********************************************/
 kma_size_t power(int base, int exp) {
 	int i;
-	int ret = base;
+	int ret = 1;
+	if (exp == 0) {
+		return 1;
+	}
 	for (i = 0; i < exp; i++) {
 		ret = base * ret;
 	}
@@ -150,7 +153,7 @@ kma_page_t* initializePage(kma_size_t size) {
 
   addBitMap(page);
 
-  free_block* node = (free_block*)((void*)page + BITMAPSIZE + sizeof(kma_page_t) + 8);
+  free_block* node = (free_block*)((void*)page + 64);
   addToFreeList(node, 32);
   node = (free_block*)((void*)node + 32);
 
