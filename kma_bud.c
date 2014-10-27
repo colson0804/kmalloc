@@ -60,11 +60,6 @@
  	struct free_list* nextFree;
  } free_block;
 
- typedef struct bit 
- {
- 	int val: 1;
- } bit;
-
 /************Global Variables*********************************************/
 
  kma_page_t* pageHeader = NULL;
@@ -75,10 +70,11 @@
 
 /**************Implementation***********************************************/
 kma_page_t* initializeFreeList(kma_size_t size) {
-	kma_page_t* freeListPage = get_page();
+	kma_page_t* freeListPage;
+	freeListPage = get_page();
 	*((kma_page_t**)freeListPage->ptr) = freeListPage;
 
-	if ((size + sizeof(kma_page_t)) > freeListPage->size) {
+	if ((size + sizeof(kma_page_t*)) > freeListPage->size) {
 		// requested size larger than page
 		free_page(freeListPage);
 		return NULL;
@@ -86,7 +82,7 @@ kma_page_t* initializeFreeList(kma_size_t size) {
 	pageHeader = freeListPage;
 
 	// Place free list immediately after header
-	free_block* freeList = (free_block*)((long)(pageHeader) + sizeof(kma_page_t));
+	free_block* freeList = (free_block*)((void *)(pageHeader) + sizeof(kma_page_t));
 	for (int i=0; i < 8; i++) {
 		freeList[i].size = 32*pow(2, i);
 		freeList[i].nextFree = NULL;
@@ -107,17 +103,18 @@ void clear_nth_bit(unsigned char *bitmap, int idx)
 
 int get_nth_bit(unsigned char *bitmap, int idx)
 {
-    return (bitmap[idx / CHAR_BIT] >> (idx % CHAR_BIT)) & 1;
+    unsigned char* bitmapClone = bitmap;
+    return (bitmapClone[idx / CHAR_BIT] >> (idx % CHAR_BIT)) & 1;
 }
 
 void addBitMap(kma_page_t* page) {
 	unsigned char bitmap[32] = { 0 };
-	void* destination = (void*)((long)page + 32);
+	// void* destination = (void*)((void*)page + 32);
 
-	for (int i = 0; i < 3; i++) {
-		set_nth_bit(bitmap, i);
-	}
-	memcpy(destination, &bitmap, 32);
+	// for (int i = 0; i < 3; i++) {
+	// 	set_nth_bit(bitmap, i);
+	// }
+	// memcpy(destination, &bitmap, 32);
 
 }
 
@@ -127,7 +124,7 @@ void* kma_malloc(kma_size_t size)
   if (!pageHeader) {
   	initializeFreeList(size);
   }
-  free_block* freeList = (free_block*)((long)(pageHeader) + sizeof(kma_page_t));
+  free_block* freeList = (free_block*)((void*)(pageHeader) + sizeof(kma_page_t));
 
   for (int i=0; i < 8; i++) {
   	if (freeList[i].size > size) {
