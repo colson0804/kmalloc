@@ -105,7 +105,7 @@ int get_nth_bit(unsigned char *bitmap, int idx) {
 }
 
 void addBitMap(kma_page_t* page) {
-  unsigned char bitmap[32] = { 0 };
+  unsigned char bitmap[64] = { 0 };
   void* destination = (void*)((void*)page + 32);
 
   for (int i = 0; i < 3; i++) {
@@ -141,10 +141,11 @@ kma_page_t* initializePage(kma_size_t size) {
 
   free_block* node = (free_block*)((void*)page + BITMAPSIZE + sizeof(kma_page_t) + 8);
   addToFreeList(node, 32);
+  node = (free_block*)((void*)node + 32);
 
   for (int i=0; i < 6; i++) {
-  	node = (free_block*)((void*)node + (int)(128*pow(2,i)));
   	addToFreeList(node, 128*pow(2,i));
+      node = (free_block*)((void*)node + (int)(128*pow(2,i)));
   }
   return page;
 }
@@ -159,10 +160,16 @@ void* kma_malloc(kma_size_t size)
 
   for (int i=0; i < 8; i++) {
 	if (freeList[i].size > size) {
-	  //malloc
+	  if (freeList[i].nextFree != NULL){
+          //MALLOC
+          return NULL;
+        }
 	}
   }
+
  kma_page_t* page = initializePage(size);
+
+ //malloc
 
   return page->ptr+sizeof(kma_page_t) ; //also bitmap size
 }
