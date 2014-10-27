@@ -121,7 +121,7 @@ void addBitMap(kma_page_t* page) {
   unsigned char bitmap[64] = { 0 };
   void* destination = (void*)((void*)page + 32);
   int i = 0;
-  for (i = 0; i < 3; i++) {
+  for (i = 0; i < 2; i++) {
    set_nth_bit(bitmap, i);
   }
   memcpy(destination, &bitmap, 32);
@@ -154,13 +154,13 @@ kma_page_t* initializePage(kma_size_t size) {
   addBitMap(page);
 
   free_block* node = (free_block*)((void*)page + 64);
-  addToFreeList(node, 32);
-  node = (free_block*)((void*)node + 32);
+  // addToFreeList(node, 32);
+  // node = (free_block*)((void*)node + 32);
 
   int i;
-  for (i=0; i < 6; i++) {
-  	addToFreeList(node, 128*power(2,i));
-      node = (free_block*)((void*)node + (int)(128*power(2,i)));
+  for (i=0; i < 7; i++) {
+  	addToFreeList(node, 64*power(2,i));
+      node = (free_block*)((void*)node + (int)(64*power(2,i)));
   }
   return page;
 }
