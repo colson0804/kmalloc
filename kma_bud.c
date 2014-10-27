@@ -166,7 +166,7 @@ void setBitMap(free_block* currNode, kma_size_t size){
 
   int diff = (int)((void*)currNode - startOfPage);
   int blockOffset = diff/32;
-  int numBits = size/32;	// Should be fine since we're only passing powers of two
+  int numBits = size/32;	// Should be fine since we're only passing powers of two-
 
   for(int j = 0; j < numBits; j++){
     set_nth_bit(bitmap, blockOffset + j);
@@ -265,8 +265,11 @@ void coalesce(void* ptr, kma_size_t size){
    if (blockOffset % size == 0){
     buddy += size;
    }
+   // else buddy -= size???
    int isBuddyFree = 1;
    for(int i=0; i < numBits; i++){
+   		// Why are we looking at blockOffset? Shouldn't we look at loc. of buddy?
+   		// i.e. buddyOffset?
      if (get_nth_bit(bitmap, blockOffset+i) == 1){
        isBuddyFree = 0;
      }
@@ -276,12 +279,15 @@ void coalesce(void* ptr, kma_size_t size){
    free_block* listNode = NULL;
    free_block* prevListNode = NULL;
    if (isBuddyFree){
+   	// Probably doesn't need to be a loop since we know size of blocks we're coalescing, but eh.
      for (int i=0;i < 8;i++){
       prevListNode = &freeList[i];
       listNode = freeList[i].nextFree;
       if(size == listNode->size){
           while(listNode != NULL){
             if((void*)listNode == buddy){
+            	// Probably should look for either buddy or node we've freed,
+            		// then remove both of them. It looks like we're just removing buddy
               prevListNode->nextFree = listNode->nextFree;
               addToFreeList(listNode, size*2);
               coalesce(ptr, size*2);
