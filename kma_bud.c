@@ -69,6 +69,15 @@
 /************External Declaration*****************************************/
 
 /**************Implementation***********************************************/
+kma_size_t power(int base, int exp) {
+	int i;
+	int ret = base;
+	for (i = 0; i < exp; i++) {
+		ret = base * ret;
+	}
+	return (kma_size_t) ret;
+}
+
 kma_page_t* initializeFreeList(kma_size_t size) {
   kma_page_t* freeListPage;
   freeListPage = get_page();
@@ -85,7 +94,7 @@ kma_page_t* initializeFreeList(kma_size_t size) {
   free_block* freeList = (free_block*)((void *)(pageHeader) + sizeof(kma_page_t));
   int i = 0;
   for (i=0; i < 8; i++) {
-	freeList[i].size = 32*pow(2, i);
+	freeList[i].size = 32*power(2, i);
 	freeList[i].nextFree = NULL;
   }
  
@@ -147,8 +156,8 @@ kma_page_t* initializePage(kma_size_t size) {
 
   int i;
   for (i=0; i < 6; i++) {
-  	addToFreeList(node, 128*pow(2,i));
-      node = (free_block*)((void*)node + (int)(128*pow(2,i)));
+  	addToFreeList(node, 128*power(2,i));
+      node = (free_block*)((void*)node + (int)(128*power(2,i)));
   }
   return page;
 }
@@ -156,8 +165,8 @@ kma_page_t* initializePage(kma_size_t size) {
 kma_size_t roundToPowerOfTwo(kma_size_t size) {
 	int i;
 	for (i=0; i < 8; i++) {
-		if (size < 32*pow(2,i)) {
-			return 32 * pow(2,i);
+		if (size < 32*power(2,i)) {
+			return 32 * power(2,i);
 		}
 	}
 	return size;
