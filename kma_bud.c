@@ -56,8 +56,8 @@
 
  typedef struct free_list
  {
- 	int size;
- 	struct free_list* nextFree;
+  int size;
+  struct free_list* nextFree;
  } free_block;
 
 /************Global Variables*********************************************/
@@ -65,71 +65,67 @@
  kma_page_t* pageHeader = NULL;
 
 /************Function Prototypes******************************************/
-	
+  
 /************External Declaration*****************************************/
 
 /**************Implementation***********************************************/
 kma_page_t* initializeFreeList(kma_size_t size) {
-	kma_page_t* freeListPage;
-	freeListPage = get_page();
-	*((kma_page_t**)freeListPage->ptr) = freeListPage;
+  kma_page_t* freeListPage;
+  freeListPage = get_page();
+  *((kma_page_t**)freeListPage->ptr) = freeListPage;
 
-	if ((size + sizeof(kma_page_t*)) > freeListPage->size) {
-		// requested size larger than page
-		free_page(freeListPage);
-		return NULL;
-	}
-	pageHeader = freeListPage;
+  if ((size + sizeof(kma_page_t*)) > freeListPage->size) {
+    // requested size larger than page
+    free_page(freeListPage);
+    return NULL;
+  }
+  pageHeader = freeListPage;
 
-	// Place free list immediately after header
-	free_block* freeList = (free_block*)((void *)(pageHeader) + sizeof(kma_page_t));
-	for (int i=0; i < 8; i++) {
-		freeList[i].size = 32*pow(2, i);
-		freeList[i].nextFree = NULL;
-	}
-
-	return freeListPage;
+  // Place free list immediately after header
+  free_block* freeList = (free_block*)((void *)(pageHeader) + sizeof(kma_page_t));
+  for (int i=0; i < 8; i++) {
+    freeList[i].size = 32*pow(2, i);
+    freeList[i].nextFree = NULL;
+  }
+ 
+  return freeListPage;
 }
 
-void set_nth_bit(unsigned char *bitmap, int idx)
-{
+void set_nth_bit(unsigned char *bitmap, int idx) {
     bitmap[idx / CHAR_BIT] |= 1 << (idx % CHAR_BIT);
 }
 
-void clear_nth_bit(unsigned char *bitmap, int idx)
-{
+void clear_nth_bit(unsigned char *bitmap, int idx) {
     bitmap[idx / CHAR_BIT] &= ~(1 << (idx % CHAR_BIT));
 }
 
-int get_nth_bit(unsigned char *bitmap, int idx)
-{
+int get_nth_bit(unsigned char *bitmap, int idx) {
     unsigned char* bitmapClone = bitmap;
     return (bitmapClone[idx / CHAR_BIT] >> (idx % CHAR_BIT)) & 1;
 }
 
 void addBitMap(kma_page_t* page) {
-	unsigned char bitmap[32] = { 0 };
-	// void* destination = (void*)((void*)page + 32);
+  unsigned char bitmap[32] = { 0 };
+  void* destination = (void*)((void*)page + 32);
 
-	// for (int i = 0; i < 3; i++) {
-	// 	set_nth_bit(bitmap, i);
-	// }
-	// memcpy(destination, &bitmap, 32);
-
+  for (int i = 0; i < 3; i++) {
+   set_nth_bit(bitmap, i);
+  }
+  memcpy(destination, &bitmap, 32);
 }
 
 void* kma_malloc(kma_size_t size)
 {
   // Initialize free-list and bitmap
   if (!pageHeader) {
-  	initializeFreeList(size);
+    initializeFreeList(size);
   }
   free_block* freeList = (free_block*)((void*)(pageHeader) + sizeof(kma_page_t));
 
   for (int i=0; i < 8; i++) {
-  	if (freeList[i].size > size) {
-  		//malloc
-  	}
+    if (freeList[i].size > size) {
+      //malloc
+    }
   }
 
   // Create a new page
@@ -145,7 +141,7 @@ void* kma_malloc(kma_size_t size)
 
  addBitMap(page);
 
-  return NULL;
+  return page->ptr+sizeof(kma_page_t) ; //also bitmap size
 }
 
 void kma_free(void* ptr, kma_size_t size)
