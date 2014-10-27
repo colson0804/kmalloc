@@ -160,7 +160,7 @@ kma_size_t roundToPowerOfTwo(kma_size_t size) {
 	return size;
 }
 
-void setBitMap(free_block* currNode, kma_page_t size){
+void setBitMap(free_block* currNode, kma_size_t size){
   void* startOfPage = BASEADDR(currNode);
   unsigned char* bitmap = (unsigned char*)(startOfPage+ sizeof(kma_page_t));
 
@@ -227,7 +227,7 @@ void* kma_malloc(kma_size_t size)
   for (int i=0; i < 8; i++) {
 	if (freeList[i].size > size) {
 	  if (freeList[i].nextFree != NULL){
-           kma_page_t* allocatedPointer = allocateSpace(size);
+           kma_page_t* allocatedPointer = (kma_page_t*)allocateSpace(size);
            return allocatedPointer; //also bitmap size
         }
 	}
@@ -236,12 +236,12 @@ void* kma_malloc(kma_size_t size)
  kma_page_t* page = initializePage(size);
  
  // Actually fill the space
- kma_page_t* allocatedPointer = allocateSpace(size);
+ kma_page_t* allocatedPointer = (kma_page_t*) allocateSpace(size);
 
   return allocatedPointer; //also bitmap size
 }
 
-void clearBitMap(free_block* currNode, kma_page_t size){
+void clearBitMap(free_block* currNode, kma_size_t size){
   void* startOfPage = BASEADDR(currNode);
   unsigned char* bitmap = (unsigned char*)(startOfPage+ sizeof(kma_page_t));
 
@@ -255,26 +255,102 @@ void clearBitMap(free_block* currNode, kma_page_t size){
 }
 
 void coalesce(void* ptr, kma_size_t size){
-  
-  //look at clearBitMap for getting offsets
+  void* startOfPage = BASEADDR(ptr);
+  unsigned char* bitmap = (unsigned char*)(startOfPage+ sizeof(kma_page_t));
+
+  int diff = (int)((void*)ptr - startOfPage);
+  int blockOffset = diff/32;
+  int numBits = size/32;
 
   /*
     CHECK FOR BUDDY:
     if the offset is a multiple of the size, its the second buddy.
     if the offset is not a multiple of the size, its the first.
   */
+   void* buddy = ptr;
+   if (blockOffset % size == 0){
+    buddy += size;
+   }
+   int isBuddyFree = 1;
+   for(int i=0; i < numBits; i++){
+     if (get_nth_bit(bitmap, blockOffset+i) == 1){
+       isBuddyFree = 0;
+     }
+   }
+
+   free_block* freeList = (free_block*)((void*)(pageHeader) + sizeof(kma_page_t));
+   free_block* listNode = NULL;
+   free_block* prevListNode = NULL;
+   if (isBuddyFree){
+     for (int i=0;i < 8;i++){
+      prevListNode = &freeList[i];
+      listNode = freeList[i].nextFree;
+      if(size == listNode->size){
+          while(listNode != NULL){
+            if((void*)listNode == buddy){
+              prevListNode->nextFree = listNode->nextFree;
+              addToFreeList(listNode, size*2);
+              coalesce(ptr, size*2);
+              return;
+            }
+          }
+          //IT WASNT IN THE LIST....
+       }
+     }
+   }
 
 }
+
+void checkForFreePage(void* ptr){
+  //PAGE FREEING
+  //if the whole bitmap (besides first 3) is 0, free the page.
+  //if there are no more free pages, free the pageHeader
+  void* startOfPage = BASEADDR(ptr);
+  unsigned char* bitmap = (unsigned char*)(startOfPage+ sizeof(kma_page_t));
+  
+  int isPageEmpty = 1;
+  //not sure about 256....might be 64?
+  for (int i = 3; i < 256; i++){
+    if(get_nth_bit(bitmap, i) == 1){
+      isPageEmpty = 0;
+      break;
+    }
+  }
+
+  free_block* freeList = (free_block*)((void*)(pageHeader) + sizeof(kma_page_t));
+  void* endOfPage = BASEADDR(ptr) + PAGESIZE;
+  
+  //want to check if there are blocks in freeList not on this page
+  int isOnlyPage = 1;
+  if (isPageEmpty){
+    free_block* prevListNode;
+    free_block* listNode;
+    for (int i = 0; i<8;i++){
+      prevListNode = &freeList[i];
+      listNode = freeList[i].nextFree;
+      while(listNode != NULL){
+        if(((void*)listNode > startOfPage) &&((void*)listNode < endOfPage)){
+          prevListNode->nextFree = listNode->nextFree;
+        }
+        else{
+          isOnlyPage = 0;
+        }
+      }
+    }
+    free_page(startOfPage);
+    if (isOnlyPage){
+      free_page(pageHeader);
+    }
+  }
+}
+
 
 void kma_free(void* ptr, kma_size_t size) {
 
   addToFreeList(ptr, size);
   clearBitMap(ptr, size);
   coalesce(ptr, size);
-
-  //PAGE FREEING
-  //if the whole bitmap (besides first 3) is 0, free the page.
-  //if there are no more free pages, free the pageHeader
+  checkForFreePage(ptr);
 
 }
 
