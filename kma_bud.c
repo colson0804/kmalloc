@@ -116,6 +116,7 @@ void addBitMap(kma_page_t* page) {
 
 void addToFreeList(free_block* currNode, size_t size) {
   free_block* freeList = (free_block*)((void *)(pageHeader) + sizeof(kma_page_t));
+
   for (int i=7; i >= 0; i--) {
 	if (freeList[i].size == size) {
 		currNode->nextFree = freeList[i].nextFree;
@@ -159,6 +160,19 @@ kma_size_t roundToPowerOfTwo(kma_size_t size) {
 	return size;
 }
 
+void setBitMap(free_block* currNode, kma_page_t size){
+  void* startOfPage = BASEADDR(currNode);
+  unsigned char* bitmap = (unsigned char*)(startOfPage+ sizeof(kma_page_t));
+
+  int diff = (int)((void*)currNode - startOfPage);
+  int blockOffset = diff/32;
+  int numBits = size/32;
+
+  for(int j = 0; j < numBits; j++){
+    set_nth_bit(bitmap, blockOffset + j);
+  }
+}
+
 void* splitNode(int sizeOfBlock, free_block* blockPointer, free_block* freeList, int index){
   void* halfwayPoint;
   if (index < 0){
@@ -173,7 +187,6 @@ void* splitNode(int sizeOfBlock, free_block* blockPointer, free_block* freeList,
     halfwayPoint = (void*)((void*)blockPointer + freeList[index].size);
     addToFreeList(halfwayPoint, freeList[index].size);
     return splitNode(sizeOfBlock, blockPointer, freeList, index--);
-
   }
 }
 
@@ -187,6 +200,7 @@ free_block* allocateSpace(kma_size_t size) {
               // Remove free node from list
               free_block* blockToAllocate = freeList[i].nextFree;
               freeList[i].nextFree = blockToAllocate->nextFree;
+              setBitMap(blockToAllocate, sizeOfBlock);
               return blockToAllocate;
             }
             else if (size < freeList[i].size && freeList[i].nextFree != NULL) {
@@ -195,7 +209,8 @@ free_block* allocateSpace(kma_size_t size) {
 			freeList[i].nextFree = blockToAllocate->nextFree;
 			// Split empty node until 
 			void* allocationPoint = splitNode(sizeOfBlock, blockToAllocate, freeList, i--);
-			return allocationPoint;
+             	setBitMap(allocationPoint, sizeOfBlock);
+                   return allocationPoint;
 		}
 	}
 	return NULL;
@@ -212,24 +227,59 @@ void* kma_malloc(kma_size_t size)
   for (int i=0; i < 8; i++) {
 	if (freeList[i].size > size) {
 	  if (freeList[i].nextFree != NULL){
-          //MALLOC
-          return NULL;
+           kma_page_t* allocatedPointer = allocateSpace(size);
+           return allocatedPointer; //also bitmap size
         }
 	}
   }
 
  kma_page_t* page = initializePage(size);
+ 
  // Actually fill the space
- allocateSpace(size);
+ kma_page_t* allocatedPointer = allocateSpace(size);
 
- //malloc
-
-  return page->ptr+sizeof(kma_page_t) ; //also bitmap size
+  return allocatedPointer; //also bitmap size
 }
 
-void kma_free(void* ptr, kma_size_t size)
-{
-  ;
+void clearBitMap(free_block* currNode, kma_page_t size){
+  void* startOfPage = BASEADDR(currNode);
+  unsigned char* bitmap = (unsigned char*)(startOfPage+ sizeof(kma_page_t));
+
+  int diff = (int)((void*)currNode - startOfPage);
+  int blockOffset = diff/32;
+  int numBits = size/32;
+
+  for(int j = 0; j < numBits; j++){
+    clear_nth_bit(bitmap, blockOffset + j);
+  }
+}
+
+void coalesce(void* ptr, kma_size_t size){
+  
+  //look at clearBitMap for getting offsets
+
+  /*
+    CHECK FOR BUDDY:
+    if the offset is a multiple of the size, its the second buddy.
+    if the offset is not a multiple of the size, its the first.
+  */
+
+}
+
+void kma_free(void* ptr, kma_size_t size) {
+
+  addToFreeList(ptr, size);
+  clearBitMap(ptr, size);
+  coalesce(ptr, size);
+
+  //PAGE FREEING
+  //if the whole bitmap (besides first 3) is 0, free the page.
+  //if there are no more free pages, free the pageHeader
+
 }
 
 #endif // KMA_BUD
+
+
+
+
