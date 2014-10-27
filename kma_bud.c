@@ -159,20 +159,43 @@ kma_size_t roundToPowerOfTwo(kma_size_t size) {
 	return size;
 }
 
+void* splitNode(int sizeOfBlock, free_block* blockPointer, free_block* freeList, int index){
+  void* halfwayPoint;
+  if (index < 0){
+    return blockPointer;
+  }
+  else if (sizeOfBlock == freeList[index].size){
+    halfwayPoint = (void*)((void*)blockPointer + sizeOfBlock);
+    addToFreeList(halfwayPoint, sizeOfBlock);
+    return blockPointer;
+  }
+  else{
+    halfwayPoint = (void*)((void*)blockPointer + freeList[index].size);
+    addToFreeList(halfwayPoint, freeList[index].size);
+    return splitNode(sizeOfBlock, blockPointer, freeList, index--);
 
+  }
+}
 
 free_block* allocateSpace(kma_size_t size) {
 	// Find smallest possible block this size can fill
 	free_block* freeList = (free_block*)((void*)pageHeader + sizeof(kma_page_t));
 	kma_size_t sizeOfBlock = roundToPowerOfTwo(size);
 	for (int i=0; i<8; i++) {
-		if (size <= freeList[i].size && freeList[i].nextFree != NULL) {
+
+		if (size == freeList[i].size && freeList[i].nextFree != NULL) {
+              // Remove free node from list
+              free_block* blockToAllocate = freeList[i].nextFree;
+              freeList[i].nextFree = blockToAllocate->nextFree;
+              return blockToAllocate;
+            }
+            else if (size < freeList[i].size && freeList[i].nextFree != NULL) {
 			// Remove free node from list
 			free_block* blockToAllocate = freeList[i].nextFree;
 			freeList[i].nextFree = blockToAllocate->nextFree;
 			// Split empty node until 
-			//splitNode(sizeOfBlock, freeList, i);
-			return blockToAllocate;
+			void* allocationPoint = splitNode(sizeOfBlock, blockToAllocate, freeList, i--);
+			return allocationPoint;
 		}
 	}
 	return NULL;
