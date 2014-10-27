@@ -166,21 +166,19 @@ void setBitMap(free_block* currNode, kma_size_t size){
 
   int diff = (int)((void*)currNode - startOfPage);
   int blockOffset = diff/32;
-  int numBits = size/32;
+  int numBits = size/32;	// Should be fine since we're only passing powers of two
 
   for(int j = 0; j < numBits; j++){
     set_nth_bit(bitmap, blockOffset + j);
   }
 }
 
-void* splitNode(int sizeOfBlock, free_block* blockPointer, free_block* freeList, int index){
+void* splitNode(kma_size_t sizeOfBlock, free_block* blockPointer, free_block* freeList, int index){
   void* halfwayPoint;
   if (index < 0){
     return blockPointer;
   }
   else if (sizeOfBlock == freeList[index].size){
-    halfwayPoint = (void*)((void*)blockPointer + sizeOfBlock);
-    addToFreeList(halfwayPoint, sizeOfBlock);
     return blockPointer;
   }
   else{
@@ -224,21 +222,17 @@ void* kma_malloc(kma_size_t size)
   }
   free_block* freeList = (free_block*)((void*)(pageHeader) + sizeof(kma_page_t));
 
-  for (int i=0; i < 8; i++) {
-	if (freeList[i].size > size) {
-	  if (freeList[i].nextFree != NULL){
-           kma_page_t* allocatedPointer = (kma_page_t*)allocateSpace(size);
-           return allocatedPointer; //also bitmap size
-        }
-	}
+  kma_page_t* allocatedPointer = (kma_page_t*)allocateSpace(size);
+  if (allocatedPointer != NULL) {
+ 	 return allocatedPointer; //also bitmap size
+  } else {
+	 initializePage(size);
+	 
+	 // Actually fill the space
+	 allocatedPointer = (kma_page_t*) allocateSpace(size);
+
+	  return allocatedPointer; //also bitmap size
   }
-
- kma_page_t* page = initializePage(size);
- 
- // Actually fill the space
- kma_page_t* allocatedPointer = (kma_page_t*) allocateSpace(size);
-
-  return allocatedPointer; //also bitmap size
 }
 
 void clearBitMap(free_block* currNode, kma_size_t size){
