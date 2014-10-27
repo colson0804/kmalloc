@@ -83,7 +83,8 @@ kma_page_t* initializeFreeList(kma_size_t size) {
 
   // Place free list immediately after header
   free_block* freeList = (free_block*)((void *)(pageHeader) + sizeof(kma_page_t));
-  for (int i=0; i < 8; i++) {
+  int i = 0;
+  for (i=0; i < 8; i++) {
 	freeList[i].size = 32*pow(2, i);
 	freeList[i].nextFree = NULL;
   }
@@ -107,8 +108,8 @@ int get_nth_bit(unsigned char *bitmap, int idx) {
 void addBitMap(kma_page_t* page) {
   unsigned char bitmap[64] = { 0 };
   void* destination = (void*)((void*)page + 32);
-
-  for (int i = 0; i < 3; i++) {
+  int i = 0;
+  for (i = 0; i < 3; i++) {
    set_nth_bit(bitmap, i);
   }
   memcpy(destination, &bitmap, 32);
@@ -116,8 +117,8 @@ void addBitMap(kma_page_t* page) {
 
 void addToFreeList(free_block* currNode, size_t size) {
   free_block* freeList = (free_block*)((void *)(pageHeader) + sizeof(kma_page_t));
-
-  for (int i=7; i >= 0; i--) {
+  int i;
+  for (i=7; i >= 0; i--) {
 	if (freeList[i].size == size) {
 		currNode->nextFree = freeList[i].nextFree;
 		freeList[i].nextFree = currNode;
@@ -144,7 +145,8 @@ kma_page_t* initializePage(kma_size_t size) {
   addToFreeList(node, 32);
   node = (free_block*)((void*)node + 32);
 
-  for (int i=0; i < 6; i++) {
+  int i;
+  for (i=0; i < 6; i++) {
   	addToFreeList(node, 128*pow(2,i));
       node = (free_block*)((void*)node + (int)(128*pow(2,i)));
   }
@@ -152,7 +154,8 @@ kma_page_t* initializePage(kma_size_t size) {
 }
 
 kma_size_t roundToPowerOfTwo(kma_size_t size) {
-	for (int i=0; i < 8; i++) {
+	int i;
+	for (i=0; i < 8; i++) {
 		if (size < 32*pow(2,i)) {
 			return 32 * pow(2,i);
 		}
@@ -168,7 +171,8 @@ void setBitMap(free_block* currNode, kma_size_t size){
   int blockOffset = diff/32;
   int numBits = size/32;	// Should be fine since we're only passing powers of two-
 
-  for(int j = 0; j < numBits; j++){
+  int j;
+  for(j = 0; j < numBits; j++){
     set_nth_bit(bitmap, blockOffset + j);
   }
 }
@@ -192,7 +196,8 @@ free_block* allocateSpace(kma_size_t size) {
 	// Find smallest possible block this size can fill
 	free_block* freeList = (free_block*)((void*)pageHeader + sizeof(kma_page_t));
 	kma_size_t sizeOfBlock = roundToPowerOfTwo(size);
-	for (int i=0; i<8; i++) {
+	int i;
+	for (i=0; i<8; i++) {
 
 		if (size == freeList[i].size && freeList[i].nextFree != NULL) {
               // Remove free node from list
@@ -243,7 +248,8 @@ void clearBitMap(free_block* currNode, kma_size_t size){
   int blockOffset = diff/32;
   int numBits = size/32;
 
-  for(int j = 0; j < numBits; j++){
+  int j;
+  for(j = 0; j < numBits; j++){
     clear_nth_bit(bitmap, blockOffset + j);
   }
 }
@@ -267,7 +273,8 @@ void coalesce(void* ptr, kma_size_t size){
    }
    // else buddy -= size???
    int isBuddyFree = 1;
-   for(int i=0; i < numBits; i++){
+   int i;
+   for(i=0; i < numBits; i++){
    		// Why are we looking at blockOffset? Shouldn't we look at loc. of buddy?
    		// i.e. buddyOffset?
      if (get_nth_bit(bitmap, blockOffset+i) == 1){
@@ -280,7 +287,8 @@ void coalesce(void* ptr, kma_size_t size){
    free_block* prevListNode = NULL;
    if (isBuddyFree){
    	// Probably doesn't need to be a loop since we know size of blocks we're coalescing, but eh.
-     for (int i=0;i < 8;i++){
+   	int i;
+     for (i=0;i < 8;i++){
       prevListNode = &freeList[i];
       listNode = freeList[i].nextFree;
       if(size == listNode->size){
@@ -310,7 +318,8 @@ void checkForFreePage(void* ptr){
   
   int isPageEmpty = 1;
   //not sure about 256....might be 64?
-  for (int i = 3; i < 256; i++){
+  int i;
+  for (i = 3; i < 256; i++){
     if(get_nth_bit(bitmap, i) == 1){
       isPageEmpty = 0;
       break;
@@ -325,7 +334,8 @@ void checkForFreePage(void* ptr){
   if (isPageEmpty){
     free_block* prevListNode;
     free_block* listNode;
-    for (int i = 0; i<8;i++){
+    int i;
+    for (i = 0; i<8;i++){
       prevListNode = &freeList[i];
       listNode = freeList[i].nextFree;
       while(listNode != NULL){
