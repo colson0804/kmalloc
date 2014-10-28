@@ -113,38 +113,32 @@ int get_nth_bit(unsigned char *bitmap, int idx) {
 	return (bitmapClone[idx / CHAR_BIT] >> (idx % CHAR_BIT)) & 1;
 }
 
-void addBitMap(kma_page_t* page) {
-  unsigned char bitmap[64] = { 0 };
-  printf("beginning of addBitMap\n");
-  fflush(stdout);
-  void* destination = (void*)((void*)page + 32);
+void addBitMap(void* destination) {
+  unsigned char bitmap[32] = { 0 };
   int i = 0;
- printf("about to nthbit\n");
- fflush(stdout);
   for (i = 0; i < 2; i++) {
    set_nth_bit(bitmap, i);
   }
-  printf("about to memcpy\n");
-  printf("destination %x\t bitmap %x\tbitmapsize %d\n", destination, &bitmap, sizeof(bitmap));
-   fflush(stdout);
-  memcpy(destination, &bitmap, 64);
-  unsigned char* bitmapCheck = startOfBitmap;
-  for(int k = 0; k < 64; k++){
-    printf("%s...", bitmapCheck[k]);
-  }
-  printf("\n");
+  memcpy(destination, &bitmap, 32);
 }
 
 void addToFreeList(free_block* currNode, size_t size) {
   free_block* freeList = (free_block*)((void *)(pageHeader) + sizeof(kma_page_t));
+  
+  int sizeOfBlock = roundToPowerOfTwo(size); 
+  
+  printf("checking freeList for spot to add\n");
   int i;
-  for (i=7; i >= 0; i--) {
-	if (freeList[i].size == size) {
+   for (i=7; i >= 0; i--) {
+	printf("comparing freeList[%d] (of size %d) to size: %d\n", i, freeList[i].size, sizeOfBlock);
+	if (freeList[i].size == sizeOfBlock) {
+ 		printf("adding node to freeList[%d], at size %d\n", i, freeList[i].size);
 		currNode->nextFree = freeList[i].nextFree;
 		freeList[i].nextFree = currNode;
 		return;
 	}
   }
+  printf("it didnt find it??\n");
 }
 
 kma_page_t* initializePage(kma_size_t size) {
@@ -152,27 +146,29 @@ kma_page_t* initializePage(kma_size_t size) {
   kma_page_t* page = get_page();
 
   *((kma_page_t**)page->ptr) = page;
-  printf("no more space, initializing new page...ptr: %x\n", (kma_page_t*)page->ptr);
+  printf("\nno more space, initializing new page...ptr: %x\n", (kma_page_t*)page->ptr);
 
   kma_page_t* frontOfPage = (kma_page_t*)page->ptr;
-  kma_page_t* startOfBitmap = (kma_page_t*)((void*)frontOfPage+sizeof(kma_page_t));
+  kma_page_t* startOfBitmap = (kma_page_t*)((void*)frontOfPage+roundToPowerOfTwo(sizeof(kma_page_t)));
   printf("startOfBitmap is: %x\n", startOfBitmap); 
   addBitMap(startOfBitmap);  
 
-  free_block* node = (free_block*)((void*)frontOfPage + 64);
+  free_block* node = (free_block*)((void*)startOfBitmap + 32);
   int i;
+  printf("node is at beginning of free space\n");
   for (i=0; i < 7; i++) {
-      printf("i is: %d\t freeListNode is at %x\n", i, node);
+      printf("i is: %d\tsize is: %d\tnode is at %x\n", i,(64*power(2, i)), node);
       addToFreeList(node, 64*power(2,i));
       node = (free_block*)((void*)node + (int)(64*power(2,i)));
   }
+  printf("finished initializing page...\n\n");
   return frontOfPage;
 }
 
 kma_size_t roundToPowerOfTwo(kma_size_t size) {
 	int i;
 	for (i=0; i < 8; i++) {
-		if (size < 32*power(2,i)) {
+		if (size <= 32*power(2,i)) {
 			return 32 * power(2,i);
 		}
 	}
@@ -182,7 +178,7 @@ kma_size_t roundToPowerOfTwo(kma_size_t size) {
 void setBitMap(free_block* currNode, kma_size_t size){
   printf("start of setBitmap\n");
   void* startOfPage = BASEADDR(currNode);
-  unsigned char* bitmap = (unsigned char*)(startOfPage+ sizeof(kma_page_t));
+  unsigned char* bitmap = (unsigned char*)(startOfPage+ roundToPowerOfTwo(sizeof(kma_page_t)));
   printf("currNode is: %x\tstartOfPage: %x\tbitmap: %x\n", currNode, startOfPage, bitmap);
 
   int diff = (int)((void*)currNode - startOfPage);
@@ -221,15 +217,15 @@ free_block* allocateSpace(kma_size_t size) {
         int i;
 	for (i=0; i<8; i++) {
 
-		if (size == freeList[i].size && freeList[i].nextFree != NULL) {
+		if (sizeOfBlock == freeList[i].size && freeList[i].nextFree != NULL) {
 		// Remove free node from list
-		printf("freeList of size %d available at %x\n", size, freeList[i].nextFree);
+		printf("freeList of exactly  size %d available at %x\n", freeList[i].size, freeList[i].nextFree);
 		free_block* blockToAllocate = freeList[i].nextFree;
 		freeList[i].nextFree = blockToAllocate->nextFree;
 		setBitMap(blockToAllocate, sizeOfBlock);
 		return blockToAllocate;
             }
-            else if (size < freeList[i].size && freeList[i].nextFree != NULL) {
+            else if (sizeOfBlock < freeList[i].size && freeList[i].nextFree != NULL) {
 			// Remove free node from list
 			printf("free block of size %d available at %x\n", freeList[i].size, freeList[i].nextFree);
 			free_block* blockToAllocate = freeList[i].nextFree;
@@ -245,6 +241,7 @@ free_block* allocateSpace(kma_size_t size) {
 
 void* kma_malloc(kma_size_t size)
 {
+  printf("\n\n====BEGINNING MALLOC OF SIZE %d====\n\n", size);
   // Initialize free-list and bitmap
   if (!pageHeader) {
 	initializeFreeList();
@@ -264,8 +261,9 @@ void* kma_malloc(kma_size_t size)
 }
 
 void clearBitMap(free_block* currNode, kma_size_t size){
+  printf("clearing bitmap\n");
   void* startOfPage = BASEADDR(currNode);
-  unsigned char* bitmap = (unsigned char*)(startOfPage+ sizeof(kma_page_t));
+  unsigned char* bitmap = (unsigned char*)(startOfPage+ 32);
 
   int diff = (int)((void*)currNode - startOfPage);
   int blockOffset = diff/32;
@@ -278,21 +276,22 @@ void clearBitMap(free_block* currNode, kma_size_t size){
 }
 
 void coalesce(void* ptr, kma_size_t size){
+  int sizeOfBlock = roundToPowerOfTwo(size);
+  printf("checking for coalescing of size %d\n", sizeOfBlock);
   void* startOfPage = BASEADDR(ptr);
-  unsigned char* bitmap = (unsigned char*)(startOfPage+ sizeof(kma_page_t));
+  unsigned char* bitmap = (unsigned char*)(startOfPage+32);
 
   int diff = (int)((void*)ptr - startOfPage);
   int blockOffset = diff/32;
-  int numBits = size/32;
-
+  int numBits = sizeOfBlock/32;
   /*
     CHECK FOR BUDDY:
     if the offset is a multiple of the size, its the second buddy.
     if the offset is not a multiple of the size, its the first.
   */
    void* buddy = ptr;
-   if (blockOffset % size == 0){
-    buddy += size;
+   if (blockOffset % sizeOfBlock == 0){
+    buddy += sizeOfBlock;
    }
    // else buddy -= size???
    int isBuddyFree = 1;
@@ -314,14 +313,14 @@ void coalesce(void* ptr, kma_size_t size){
      for (i=0;i < 8;i++){
       prevListNode = &freeList[i];
       listNode = freeList[i].nextFree;
-      if(size == listNode->size){
+      if(sizeOfBlock == listNode->size){
           while(listNode != NULL){
             if((void*)listNode == buddy){
             	// Probably should look for either buddy or node we've freed,
             		// then remove both of them. It looks like we're just removing buddy
               prevListNode->nextFree = listNode->nextFree;
-              addToFreeList(listNode, size*2);
-              coalesce(ptr, size*2);
+              addToFreeList(listNode, sizeOfBlock*2);
+              coalesce(ptr, sizeOfBlock*2);
               return;
             }
           }
@@ -350,6 +349,7 @@ void checkForFreePage(void* ptr){
   }
 
   free_block* freeList = (free_block*)((void*)(pageHeader) + sizeof(kma_page_t));
+  
   void* endOfPage = BASEADDR(ptr) + PAGESIZE;
   
   //want to check if there are blocks in freeList not on this page
@@ -379,7 +379,7 @@ void checkForFreePage(void* ptr){
 
 
 void kma_free(void* ptr, kma_size_t size) {
-
+  printf("\n\n====BEGINNING FREE OF SIZE %d at ptr %x====\n\n", size, ptr);
   addToFreeList(ptr, size);
   clearBitMap(ptr, size);
   coalesce(ptr, size);
