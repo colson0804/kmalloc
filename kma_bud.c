@@ -129,7 +129,8 @@ void addBitMap(kma_page_t* page) {
    fflush(stdout);
   memcpy(destination, &bitmap, 64);
   unsigned char* bitmapCheck = startOfBitmap;
-  for(int k = 0; k < 64; k++){
+  int k;
+  for(k = 0; k < 64; k++){
     printf("%s...", bitmapCheck[k]);
   }
   printf("\n");
