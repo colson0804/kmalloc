@@ -58,8 +58,7 @@
 #include "kma.h"
 
 /************Defines and Typedefs*****************************************/
-/*  #defines and typedefs should have their names in all caps.
- *  Global variables begin with g. Global constants with k. Local
+/*  #defines and typedefs should have their names in all caps    *  Global variables begin with g. Global constants with k. Local
  *  variables should be in all lower case. When initializing
  *  structures and arrays, line everything up in neat columns.
  */
@@ -79,15 +78,15 @@
 
 /**************Implementation***********************************************/
 kma_size_t power(int base, int exp) {
-	int i;
-	int ret = 1;
-	if (exp == 0) {
-		return 1;
-	}
-	for (i = 0; i < exp; i++) {
-		ret = base * ret;
-	}
-	return (kma_size_t) ret;
+  int i;
+  int ret = 1;
+  if (exp == 0) {
+    return 1;
+  }
+  for (i = 0; i < exp; i++) {
+    ret = base * ret;
+  }
+  return (kma_size_t) ret;
 }
 
 void initializeFreeList() {
@@ -103,22 +102,22 @@ void initializeFreeList() {
   free_block* freeList = (free_block*)((void *)(pageHeader) + sizeof(kma_page_t));
   int i = 0;
   for (i=0; i < 8; i++) {
-	freeList[i].size = MINBLOCKSIZE*power(2, i);
-	freeList[i].nextFree = NULL;
+  freeList[i].size = MINBLOCKSIZE*power(2, i);
+  freeList[i].nextFree = NULL;
   }
 }
 
 void set_nth_bit(unsigned char *bitmap, int idx) {
-	bitmap[idx / CHAR_BIT] |= 1 << (idx % CHAR_BIT);
+  bitmap[idx / CHAR_BIT] |= 1 << (idx % CHAR_BIT);
 }
 
 void clear_nth_bit(unsigned char *bitmap, int idx) {
-	bitmap[idx / CHAR_BIT] &= ~(1 << (idx % CHAR_BIT));
+  bitmap[idx / CHAR_BIT] &= ~(1 << (idx % CHAR_BIT));
 }
 
 int get_nth_bit(unsigned char *bitmap, int idx) {
-	unsigned char* bitmapClone = bitmap;
-	return (bitmapClone[idx / CHAR_BIT] >> (idx % CHAR_BIT)) & 1;
+  unsigned char* bitmapClone = bitmap;
+  return (bitmapClone[idx / CHAR_BIT] >> (idx % CHAR_BIT)) & 1;
 }
 
 void addBitMap(void* destination) {
@@ -135,22 +134,22 @@ void addToFreeList(free_block* currNode, size_t size) {
   
   int sizeOfBlock = roundToPowerOfTwo(size); 
   
-  D(printf("checking freeList for spot to add\n"));
+  //D(printf("checking freeList for spot to add\n"));
   int i;
    for (i=7; i >= 0; i--) {
-	D(printf("comparing freeList[%d] (of size %d) to size: %d\n", i, freeList[i].size, sizeOfBlock));
-	if (freeList[i].size == sizeOfBlock) {
- 		D(printf("adding node to freeList[%d], at size %d\n", i, freeList[i].size));
-		currNode->nextFree = freeList[i].nextFree;
-		freeList[i].nextFree = currNode;
-		return;
-	}
+  //D(printf("comparing freeList[%d] (of size %d) to size: %d\n", i, freeList[i].size, sizeOfBlock));
+  if (freeList[i].size == sizeOfBlock) {
+    D(printf("adding node to freeList[%d], at size %d\n", i, freeList[i].size));
+    currNode->nextFree = freeList[i].nextFree;
+    freeList[i].nextFree = currNode;
+    return;
+  }
   }
   D(printf("it didnt find it??\n"));
 }
 
 kma_page_t* initializePage(kma_size_t size) {
-	// Create a new page
+  // Create a new page
   kma_page_t* page = get_page();
 
   *((kma_page_t**)page->ptr) = page;
@@ -174,13 +173,13 @@ kma_page_t* initializePage(kma_size_t size) {
 }
 
 kma_size_t roundToPowerOfTwo(kma_size_t size) {
-	int i;
-	for (i=0; i < 8; i++) {
-		if (size <= 32*power(2,i)) {
-			return 32 * power(2,i);
-		}
-	}
-	return size;
+  int i;
+  for (i=0; i < 8; i++) {
+    if (size <= 32*power(2,i)) {
+      return 32 * power(2,i);
+    }
+  }
+  return size;
 }
 
 void setBitMap(free_block* currNode, kma_size_t size){
@@ -191,7 +190,7 @@ void setBitMap(free_block* currNode, kma_size_t size){
 
   int diff = (int)((void*)currNode - startOfPage);
   int blockOffset = diff/32;
-  int numBits = size/32;	// Should be fine since we're only passing powers of two-
+  int numBits = size/32;  // Should be fine since we're only passing powers of two-
 
   int j;
   for(j = 0; j < numBits; j++){
@@ -201,50 +200,53 @@ void setBitMap(free_block* currNode, kma_size_t size){
 
 void* splitNode(kma_size_t sizeOfBlock, free_block* blockPointer, free_block* freeList, int index){
   void* halfwayPoint;
-  D(printf("spliting node of size %d - going for size %d\n", freeList[index].size, sizeOfBlock));
+  D(printf("INDEX IS: %d\n", index));
+  D(printf("splitting node of size %d - going for size %d\n", freeList[index].size, sizeOfBlock));
   if (index < 0){
     return blockPointer;
   }
   else if (sizeOfBlock == freeList[index].size){
-	D(printf("they're equal! returning from splitNode\n"));
-	return blockPointer;
+  D(printf("they're equal! returning from splitNode\n"));
+  return blockPointer;
   }
   else{
+    index = index -1;
     halfwayPoint = (void*)((void*)blockPointer + freeList[index].size);
+    D(printf("BLOCK POINTER IS: %x, HALFWAY IS: %x, SIZE IS: %d\n", blockPointer, halfwayPoint, freeList[index].size));
     D(printf("not equal...blockPointer is %x and halfwayPoint is %x\n", blockPointer, halfwayPoint));
     addToFreeList(halfwayPoint, freeList[index].size);
-    return splitNode(sizeOfBlock, blockPointer, freeList, index--);
+    return splitNode(sizeOfBlock, blockPointer, freeList, index);
   }
 }
 
 free_block* allocateSpace(kma_size_t size) {
-	// Find smallest possible block this size can fill
-	free_block* freeList = (free_block*)((void*)pageHeader + sizeof(kma_page_t));
-	kma_size_t sizeOfBlock = roundToPowerOfTwo(size);
-	D(printf("allocating space...freeList is at %x\tsizeOfBlock is %d\n", freeList, sizeOfBlock));
+  // Find smallest possible block this size can fill
+  free_block* freeList = (free_block*)((void*)pageHeader + sizeof(kma_page_t));
+  kma_size_t sizeOfBlock = roundToPowerOfTwo(size);
+  D(printf("allocating space...freeList is at %x\tsizeOfBlock is %d\n", freeList, sizeOfBlock));
         int i;
-	for (i=0; i<8; i++) {
+  for (i=0; i<8; i++) {
 
-		if (sizeOfBlock == freeList[i].size && freeList[i].nextFree != NULL) {
-		// Remove free node from list
-		D(printf("freeList of exactly  size %d available at %x\n", freeList[i].size, freeList[i].nextFree));
-		free_block* blockToAllocate = freeList[i].nextFree;
-		freeList[i].nextFree = blockToAllocate->nextFree;
-		setBitMap(blockToAllocate, sizeOfBlock);
-		return blockToAllocate;
+    if (sizeOfBlock == freeList[i].size && freeList[i].nextFree != NULL) {
+    // Remove free node from list
+    D(printf("freeList of exactly  size %d available at %x\n", freeList[i].size, freeList[i].nextFree));
+    free_block* blockToAllocate = freeList[i].nextFree;
+    freeList[i].nextFree = blockToAllocate->nextFree;
+    setBitMap(blockToAllocate, sizeOfBlock);
+    return blockToAllocate;
             }
             else if (sizeOfBlock < freeList[i].size && freeList[i].nextFree != NULL) {
-			// Remove free node from list
-			D(printf("free block of size %d available at %x\n", freeList[i].size, freeList[i].nextFree));
-			free_block* blockToAllocate = freeList[i].nextFree;
-			freeList[i].nextFree = blockToAllocate->nextFree;
-			// Split empty node until 
-			void* allocationPoint = splitNode(sizeOfBlock, blockToAllocate, freeList, i--);
-             		setBitMap(allocationPoint, sizeOfBlock);
-                   	return allocationPoint;
-		}
-	}
-	return NULL;
+      // Remove free node from list
+      D(printf("free block of size %d available at %x\n", freeList[i].size, freeList[i].nextFree));
+      free_block* blockToAllocate = freeList[i].nextFree;
+      freeList[i].nextFree = blockToAllocate->nextFree;
+      // Split empty node until 
+      void* allocationPoint = splitNode(sizeOfBlock, blockToAllocate, freeList, i--);
+                setBitMap(allocationPoint, sizeOfBlock);
+                    return allocationPoint;
+    }
+  }
+  return NULL;
 }
 
 void* kma_malloc(kma_size_t size)
@@ -252,19 +254,19 @@ void* kma_malloc(kma_size_t size)
   D(printf("\n\n====BEGINNING MALLOC OF SIZE %d====\n\n", size));
   // Initialize free-list and bitmap
   if (!pageHeader) {
-	initializeFreeList();
+  initializeFreeList();
   }
   free_block* freeList = (free_block*)((void*)(pageHeader) + sizeof(kma_page_t));
 
   kma_page_t* allocatedPointer = (kma_page_t*)allocateSpace(size); 
   if (allocatedPointer != NULL) {
- 	 return allocatedPointer; //also bitmap size
+   return allocatedPointer; //also bitmap size
   } else {
-	 kma_page_t* newPage = initializePage(size);	 
-	 // Actually fill the space
-	 allocatedPointer = (kma_page_t*) allocateSpace(size);
-	 D(printf("allocatedPointer is: %x\n", allocatedPointer));
-	 return allocatedPointer; //also bitmap size
+   kma_page_t* newPage = initializePage(size);   
+   // Actually fill the space
+   allocatedPointer = (kma_page_t*) allocateSpace(size);
+   D(printf("allocatedPointer is: %x\n", allocatedPointer));
+   return allocatedPointer; //also bitmap size
   }
 }
 
@@ -305,8 +307,8 @@ void coalesce(void* ptr, kma_size_t size){
    int isBuddyFree = 1;
    int i;
    for(i=0; i < numBits; i++){
-   		// Why are we looking at blockOffset? Shouldn't we look at loc. of buddy?
-   		// i.e. buddyOffset?
+      // Why are we looking at blockOffset? Shouldn't we look at loc. of buddy?
+      // i.e. buddyOffset?
      if (get_nth_bit(bitmap, blockOffset+i) == 1){
        isBuddyFree = 0;
      }
@@ -316,16 +318,16 @@ void coalesce(void* ptr, kma_size_t size){
    free_block* listNode = NULL;
    free_block* prevListNode = NULL;
    if (isBuddyFree){
-   	// Probably doesn't need to be a loop since we know size of blocks we're coalescing, but eh.
-   	int i;
+    // Probably doesn't need to be a loop since we know size of blocks we're coalescing, but eh.
+    int i;
      for (i=0;i < 8;i++){
       prevListNode = &freeList[i];
       listNode = freeList[i].nextFree;
       if(sizeOfBlock == listNode->size){
           while(listNode != NULL){
             if((void*)listNode == buddy){
-            	// Probably should look for either buddy or node we've freed,
-            		// then remove both of them. It looks like we're just removing buddy
+              // Probably should look for either buddy or node we've freed,
+                // then remove both of them. It looks like we're just removing buddy
               prevListNode->nextFree = listNode->nextFree;
               addToFreeList(listNode, sizeOfBlock*2);
               coalesce(ptr, sizeOfBlock*2);
@@ -396,7 +398,3 @@ void kma_free(void* ptr, kma_size_t size) {
 }
 
 #endif // KMA_BUD
-
-
-
-
