@@ -42,7 +42,8 @@
 #include <stdlib.h>
 #include <math.h>
 #include <string.h>
-
+#include <stdlib.h>
+#include <stdio.h>
 /************Private include**********************************************/
 #include "kma_page.h"
 #include "kma.h"
@@ -114,12 +115,24 @@ int get_nth_bit(unsigned char *bitmap, int idx) {
 
 void addBitMap(kma_page_t* page) {
   unsigned char bitmap[64] = { 0 };
+  printf("beginning of addBitMap\n");
+  fflush(stdout);
   void* destination = (void*)((void*)page + 32);
   int i = 0;
+ printf("about to nthbit\n");
+ fflush(stdout);
   for (i = 0; i < 2; i++) {
    set_nth_bit(bitmap, i);
   }
-  memcpy(destination, &bitmap, 32);
+  printf("about to memcpy\n");
+  printf("destination %x\t bitmap %x\tbitmapsize %d\n", destination, &bitmap, sizeof(bitmap));
+   fflush(stdout);
+  memcpy(destination, &bitmap, 64);
+  unsigned char* bitmapCheck = startOfBitmap;
+  for(int k = 0; k < 64; k++){
+    printf("%s...", bitmapCheck[k]);
+  }
+  printf("\n");
 }
 
 void addToFreeList(free_block* currNode, size_t size) {
@@ -139,19 +152,13 @@ kma_page_t* initializePage(kma_size_t size) {
   kma_page_t* page = get_page();
 
   *((kma_page_t**)page->ptr) = page;
-  printf("initializing new page...ptr: %x\n", (kma_page_t*)page->ptr);
-  
-  //if ((size + sizeof(kma_page_t)) > page->size) {
-  // requested size larger than page
-//	free_page(page);
-//	return NULL;
-  //}
+  printf("no more space, initializing new page...ptr: %x\n", (kma_page_t*)page->ptr);
 
   kma_page_t* frontOfPage = (kma_page_t*)page->ptr;
-  kma_page_t* startOfBitmap = (kma_page_t*)((void*)frontOfPage+sizeof(kma_page_t*));
+  kma_page_t* startOfBitmap = (kma_page_t*)((void*)frontOfPage+sizeof(kma_page_t));
   printf("startOfBitmap is: %x\n", startOfBitmap); 
-  addBitMap(startOfBitmap);
-  printf("bitmap added\n");
+  addBitMap(startOfBitmap);  
+
   free_block* node = (free_block*)((void*)frontOfPage + 64);
   int i;
   for (i=0; i < 7; i++) {
@@ -210,7 +217,7 @@ free_block* allocateSpace(kma_size_t size) {
 	// Find smallest possible block this size can fill
 	free_block* freeList = (free_block*)((void*)pageHeader + sizeof(kma_page_t));
 	kma_size_t sizeOfBlock = roundToPowerOfTwo(size);
-	printf("allocating space...\nfreeList is at %x\tsizeOfBlock is %d\n", freeList, sizeOfBlock);
+	printf("allocating space...freeList is at %x\tsizeOfBlock is %d\n", freeList, sizeOfBlock);
         int i;
 	for (i=0; i<8; i++) {
 
