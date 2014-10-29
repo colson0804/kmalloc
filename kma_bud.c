@@ -260,24 +260,28 @@ void* kma_malloc(kma_size_t size)
 
   kma_page_t* allocatedPointer = (kma_page_t*)allocateSpace(size); 
   if (allocatedPointer != NULL) {
-   return allocatedPointer; //also bitmap size
+  printBitmap(allocatedPointer);   
+  return allocatedPointer; //also bitmap size
   } else {
    kma_page_t* newPage = initializePage(size);   
    // Actually fill the space
    allocatedPointer = (kma_page_t*) allocateSpace(size);
+
    D(printf("allocatedPointer is: %x\n", allocatedPointer));
+   printBitmap(allocatedPointer);
    return allocatedPointer; //also bitmap size
   }
 }
 
 void clearBitMap(free_block* currNode, kma_size_t size){
   D(printf("clearing bitmap\n"));
+  int sizeOfBlock = roundToPowerOfTwo(size);
   void* startOfPage = BASEADDR(currNode);
   unsigned char* bitmap = (unsigned char*)(startOfPage+ 32);
 
   int diff = (int)((void*)currNode - startOfPage);
   int blockOffset = diff/32;
-  int numBits = size/32;
+  int numBits = sizeOfBlock/32;
 
   int j;
   for(j = 0; j < numBits; j++){
@@ -299,17 +303,22 @@ void coalesce(void* ptr, kma_size_t size){
     if the offset is a multiple of the size, its the second buddy.
     if the offset is not a multiple of the size, its the first.
   */
-   void* buddy = ptr;
-   if (blockOffset % sizeOfBlock == 0){
-    buddy += sizeOfBlock;
+   void* buddyPtr = ptr;
+
+   if (((diff / sizeOfBlock) % 2) == 0){
+    buddyPtr += sizeOfBlock;
    }
-   // else buddy -= size???
+   else{
+    buddyPtr -= sizeOfBlock;
+   }
+   D(printf("block is: %x, buddy is: %x, blockOffset is: %d, diff is %d\n", ptr, buddyPtr, blockOffset, diff));
    int isBuddyFree = 1;
    int i;
+   int buddyDiff = (int)((void*)buddyPtr - startOfPage);
+   int buddyOffset = buddyDiff/32;
+
    for(i=0; i < numBits; i++){
-      // Why are we looking at blockOffset? Shouldn't we look at loc. of buddy?
-      // i.e. buddyOffset?
-     if (get_nth_bit(bitmap, blockOffset+i) == 1){
+     if (get_nth_bit(bitmap, buddyOffset+i) == 1){
        isBuddyFree = 0;
      }
    }
@@ -318,14 +327,17 @@ void coalesce(void* ptr, kma_size_t size){
    free_block* listNode = NULL;
    free_block* prevListNode = NULL;
    if (isBuddyFree){
-    // Probably doesn't need to be a loop since we know size of blocks we're coalescing, but eh.
-    int i;
-     for (i=0;i < 8;i++){
+
+  D(printf("BUDDY IS FREE!\n"));
+  int i = ((int)log2(sizeOfBlock)) - 5;
+     
       prevListNode = &freeList[i];
       listNode = freeList[i].nextFree;
-      if(sizeOfBlock == listNode->size){
+
+  D(printf("prevListNode: %x, listNode %x\n", prevListNode, listNode));
+
           while(listNode != NULL){
-            if((void*)listNode == buddy){
+            if((void*)listNode == buddyPtr){
               // Probably should look for either buddy or node we've freed,
                 // then remove both of them. It looks like we're just removing buddy
               prevListNode->nextFree = listNode->nextFree;
@@ -334,9 +346,6 @@ void coalesce(void* ptr, kma_size_t size){
               return;
             }
           }
-          //IT WASNT IN THE LIST....
-       }
-     }
    }
 
 }
@@ -387,11 +396,23 @@ void checkForFreePage(void* ptr){
   }
 }
 
+void printBitmap(void* currNode){
+  D(printf("printing bitmap\n"));
+  void* startOfPage = BASEADDR(currNode);
+  unsigned char* bitmap = (unsigned char*)(startOfPage+ 32);
+
+  int j;
+  for(j = 0; j < 256; j++){
+    D(printf("%d...", get_nth_bit(bitmap, j)));
+  }
+  D(printf("\n"));
+}
 
 void kma_free(void* ptr, kma_size_t size) {
   D(printf("\n\n====BEGINNING FREE OF SIZE %d at ptr %x====\n\n", size, ptr));
   addToFreeList(ptr, size);
   clearBitMap(ptr, size);
+  printBitmap(ptr);
   coalesce(ptr, size);
   checkForFreePage(ptr);
 
