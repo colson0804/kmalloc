@@ -74,6 +74,15 @@ static kma_page_t* pageHeader = NULL;
 
 /**************Implementation***********************************************/
 
+void printFreeList(free_block* startOfList) {
+  free_block* node = startOfList->nextBase;
+  while(node != NULL) {
+    printf("Loc: %x\t", (void*)node);
+    printf("Size: %d\n", (int)node->size);
+    node = node->nextBase;
+  }
+}
+
 void removeFreeFromList(free_block* prevNode, kma_size_t size) {
   // If prevBlock is NULL, then previous is pageHeader
 
@@ -200,7 +209,8 @@ kma_malloc(kma_size_t size)
 }
 
 free_block* findFreeBlockInsertionPoint(void* ptr){
-  free_block* node = pageHeader->ptr;
+  free_block* freeList = (free_block*)((void*)pageHeader + sizeof(kma_page_t));
+  free_block* node = freeList;
   while (node) {
     if (node->nextBase == NULL){
       return node;
@@ -215,16 +225,19 @@ free_block* findFreeBlockInsertionPoint(void* ptr){
 }
 
 free_block* coalesce(free_block* prevFreeBlock, free_block* newNode) {
-  
-  if (prevFreeBlock + prevFreeBlock->size == newNode && newNode + newNode->size == newNode->nextBase) {  // Both previous and next node are free
+  D(printf("newNode: %x\n", (void*)newNode));
+  D(printf("newNode->size: %x\n", (void*)newNode->size));
+  D(printf("newNode->nextBase: %x\n", (void*)newNode->nextBase));
+  if ((void*)prevFreeBlock + prevFreeBlock->size == (void*)newNode && (void*)newNode + newNode->size == (void*)newNode->nextBase) {  // Both previous and next node are free
     prevFreeBlock->size = prevFreeBlock->size + newNode->size + newNode->nextBase->size;
     prevFreeBlock->nextBase = newNode->nextBase->nextBase;
     return prevFreeBlock;
-  } else if (prevFreeBlock + prevFreeBlock->size == newNode) { // Free block before it
+  } else if ((void*)prevFreeBlock + prevFreeBlock->size == (void*)newNode) { // Free block before it
     prevFreeBlock->size = prevFreeBlock->size + newNode->size;
     prevFreeBlock->nextBase = newNode->nextBase;
     return prevFreeBlock;
-  } else if (newNode + newNode->size == newNode->nextBase) { // Free block after it
+  } else if ((void*)newNode + newNode->size == (void*)newNode->nextBase) { // Free block after it
+    D(printf("here\n"));
     newNode->size = newNode->size + newNode->nextBase->size;
     newNode->nextBase = newNode->nextBase->nextBase;
     return newNode;
@@ -234,55 +247,60 @@ free_block* coalesce(free_block* prevFreeBlock, free_block* newNode) {
 
 void kma_free(void* ptr, kma_size_t size) {
   
-  D(exit(0));
+  //D(exit(0));
+  D(printf("Attempting to free block of size: %d\n", (int) size));
+  D(printf("------------------------------------\n"));
   free_block* prevFreeBlock = NULL;
-  free_block* startOfFreeMemory = NULL;
+  free_block* startOfFreeMemory = (free_block*)((void*)pageHeader + sizeof(kma_page_t));
 
   if (pageHeader==NULL) // Something went wrong
     return;
 
-  if (pageHeader->ptr == NULL) { //nothing
-    pageHeader->ptr = (free_block*) ptr;
-    startOfFreeMemory = pageHeader->ptr;
-  } else {
+  // if (pageHeader->ptr == NULL) { //nothing
+  //   pageHeader->ptr = (free_block*) ptr;
+  //   startOfFreeMemory = pageHeader->ptr;
+  // } else {
 
     free_block* newNode = NULL;
-    free_block* firstFreeBlock = (free_block*)(pageHeader->ptr);
+    free_block* firstFreeBlock = (free_block*)(startOfFreeMemory->nextBase);
+    D(printf("First free node is: %x\n", (void*) firstFreeBlock));
     
 
-    if (firstFreeBlock > (free_block*) ptr){
-      newNode = (free_block*) ptr; 
-      newNode->nextBase = firstFreeBlock;
-      newNode->size = size;
-      pageHeader->ptr = newNode;
-      startOfFreeMemory = coalesce(newNode, firstFreeBlock);
-    }
-    else{
+    // if (firstFreeBlock > (free_block*) ptr){
+    //   newNode = (free_block*) ptr; 
+    //   newNode->nextBase = firstFreeBlock;
+    //   newNode->size = size;
+    //   pageHeader->ptr = newNode;
+    //   startOfFreeMemory = coalesce(newNode, firstFreeBlock);
+    // }
+    //else{
       prevFreeBlock = findFreeBlockInsertionPoint(ptr);
+      D(printf("Block insertion point: %x\n", (void*) prevFreeBlock));
 
+
+       //D(printFreeList(startOfFreeMemory));
       // Insert into list
       newNode = (free_block*) ptr;
       newNode->nextBase = prevFreeBlock->nextBase;
       prevFreeBlock->nextBase = newNode;
 
       newNode->size = size;
-
+       D(printFreeList(startOfFreeMemory));
       startOfFreeMemory = coalesce(prevFreeBlock, newNode);
-    }
-  }
+      D(printf("Size after coalescing: %d\n", (int) newNode->size));
+   // }
+  //} 
+      //D(printFreeList(startOfFreeMemory));
+      //D(exit(0));
   // Handle possible free pages
-  if (startOfFreeMemory->size == PAGESIZE - sizeof(kma_page_t)) {
-    if (pageHeader->ptr == startOfFreeMemory) {
-      pageHeader = BASEADDR(startOfFreeMemory->nextBase);
-      pageHeader->ptr = startOfFreeMemory->nextBase;
-    } else {
-      free_block* node = pageHeader->ptr;
-      while (node->nextBase != startOfFreeMemory) {
-        node = node->nextBase;
-      }
-      node->nextBase = startOfFreeMemory->nextBase;
-    }
-    free_page((kma_page_t*) BASEADDR(startOfFreeMemory));
+  if (firstFreeBlock->size == PAGESIZE - sizeof(kma_page_t) - sizeof(free_block)) {
+    free_block* newFirstFree = firstFreeBlock->nextBase;
+
+    free_block* newPageHeader = BASEADDR(newFirstFree);
+    free_block* newStartOfList = (free_block*)((void*)newPageHeader + sizeof(kma_page_t));
+    newStartOfList->nextBase = newFirstFree;
+
+    free_page((kma_page_t*) BASEADDR(newFirstFree));
   }
 }
 
