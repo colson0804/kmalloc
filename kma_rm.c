@@ -134,12 +134,14 @@ kma_malloc(kma_size_t size)
     kma_page_t* page = get_page();
 
     *((kma_page_t**)page->ptr) = page;
+    D(printf("Here is page: %x\n", (unsigned int)page));
 
     D(printf("initializing freeList page...ptr: %x\n", (kma_page_t*)page->ptr));
 
     // PageHeader is placed at beginning of page
     // points to next free block (after what we're allocating)
     pageHeader = (kma_page_t*)page->ptr;
+    D(printf("Where is pageHeader pointing???%x\n", (unsigned int)pageHeader->ptr));
 
     D(printf("PageHeader is at: %x\n", (kma_page_t*)pageHeader));
 
@@ -209,6 +211,7 @@ kma_malloc(kma_size_t size)
       kma_page_t* newPageHeader = (kma_page_t*)newPage->ptr;
       D(printf("New page: %x\n", (void*)newPage->ptr));
       free_block* newFreeList = (free_block*)((void*)newPageHeader + sizeof(kma_page_t));
+      newFreeList->size = -1;
       free_block* newNode = (free_block*)((void*)newFreeList + sizeof(free_block) + size);
       node->nextBase = newNode;
 
@@ -314,7 +317,8 @@ void kma_free(void* ptr, kma_size_t size) {
     D(printf("NOW ATTEMPTING TO FREE A PAGE\n"));
     // Find the beginning of current page
     //free_block* coalescedCopy = coalescedBlock;
-    kma_page_t* pageToFree = (kma_page_t*) BASEADDR(coalescedBlock);
+    kma_page_t* pageToFree = BASEADDR(coalescedBlock);
+    pageToFree = *((kma_page_t**)pageToFree);
     D(printf("WHAT\n"));
     D(printf("address of coalesced block: %x\n", (void*)coalescedBlock));
     D(printf("beginning of page to free: %x\n", pageToFree));
@@ -333,7 +337,7 @@ void kma_free(void* ptr, kma_size_t size) {
       prevFreeBlock = findFreeBlockInsertionPoint(coalescedBlock);
       D(printf("Previous free block: %d\n", (int) prevFreeBlock->size));
       prevFreeBlock->nextBase = coalescedBlock->nextBase;
-      D(printf("Next base size: %d\n", (int)coalescedBlock->nextBase->size));
+      //D(printf("Next base size: %d\n", (int)coalescedBlock->nextBase->size));
     }
 
 
