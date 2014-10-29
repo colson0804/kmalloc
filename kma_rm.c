@@ -159,7 +159,7 @@ kma_malloc(kma_size_t size)
     D(printf("New free block is at: %x\n", (void*)firstFree));
     freeList->nextBase = firstFree;
     firstFree->nextBase = NULL;
-    firstFree->size = (page->size - sizeof(kma_page_t) - sizeof(free_block) - size);
+    firstFree->size = (PAGESIZE - sizeof(kma_page_t) - sizeof(free_block) - size);
     D(printf("New size of free block: %d\n", (int)firstFree->size));
     D(printf("What are we returning?: %x\n\n\n", ((void *) pageHeader) + sizeof(kma_page_t) + sizeof(free_block)));
     //D(exit(0));
@@ -327,10 +327,17 @@ void kma_free(void* ptr, kma_size_t size) {
     if (pageToFree == pageHeader) {
       D(printf("uhhh\n"));
       // Need to reset first block to that of next page
-      void* nextPage = pageToFree + PAGESIZE;
-      free_block* newPageHeader = nextPage + sizeof(kma_page_t);
-      newPageHeader->nextBase = coalescedBlock->nextBase;
-      pageHeader = (kma_page_t*) newPageHeader;
+      // Also check if this is only page
+      if (firstFreeBlock->nextBase == NULL) {
+        free_page(pageToFree);
+        pageHeader = NULL;
+        return;
+      } else {
+        void* nextPage = pageToFree + PAGESIZE;
+        free_block* newPageHeader = nextPage + sizeof(kma_page_t);
+        newPageHeader->nextBase = coalescedBlock->nextBase;
+        pageHeader = (kma_page_t*) newPageHeader;
+      }
     } else {
       D(printf("Here\n"));
       // Still need to adjust pointer
