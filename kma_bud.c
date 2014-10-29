@@ -38,11 +38,8 @@
 #define CHAR_BIT 8
 
 
-<<<<<<< HEAD
+
 //#define DEBUG 1
-=======
-#define DEBUG 0
->>>>>>> 82328814b3a3a3c825024d9ae254ccde0ed5af72
 
  #ifdef DEBUG
 #  define D(x) x
@@ -308,7 +305,7 @@ void* kma_malloc(kma_size_t size)
 	D(printf("There's a page!\n"));
  	printBitmap(allocatedPointer); 
 	printFreeList();
-	verifyBitmap();	 
+
 	return allocatedPointer; //also bitmap size
   } else {
 	D(printf("gotta make a new page\n"));
@@ -319,7 +316,7 @@ void* kma_malloc(kma_size_t size)
 	 D(printf("allocatedPointer is: %x\n", allocatedPointer));
  	 printBitmap(allocatedPointer);
 	printFreeList();
-	verifyBitmap();
+
 	 return allocatedPointer; //also bitmap size
 
   }
@@ -534,7 +531,7 @@ void kma_free(void* ptr, kma_size_t size) {
   coalesce(ptr, size);
   checkForFreePage(ptr);
   printFreeList();
-  verifyBitmap();
+
 
 	
 
