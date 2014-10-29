@@ -303,6 +303,7 @@ if (pageHeader==NULL) // Something went wrong
       D(printf("its the first page\n"));
       // Need to reset first block to that of next page
 
+	D(printf("are there more pages? %x\n", coalescedBlock->nextBase));
 	if(coalescedBlock->nextBase == NULL){
 		D(printf("its the only page\n"));		
 		pageHeader = NULL;	
