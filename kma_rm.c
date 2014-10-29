@@ -228,6 +228,7 @@ kma_malloc(kma_size_t size)
 free_block* findFreeBlockInsertionPoint(void* ptr){
   free_block* freeList = (free_block*)((void*)pageHeader + sizeof(kma_page_t));
   free_block* node = freeList;
+  printf("What the fuck is the node? Is it Null? Please tell me it\'s not null: %x\n", (unsigned int)node);
   while (node) {
     if (node->nextBase == NULL){
       return node;
@@ -333,10 +334,10 @@ void kma_free(void* ptr, kma_size_t size) {
         pageHeader = NULL;
         return;
       } else {
-        void* nextPage = pageToFree + PAGESIZE;
-        free_block* newPageHeader = nextPage + sizeof(kma_page_t);
-        newPageHeader->nextBase = coalescedBlock->nextBase;
-        pageHeader = (kma_page_t*) newPageHeader;
+        kma_page_t* nextPage = pageToFree + PAGESIZE;
+        free_block* newFreeHeader = (free_block*)((void*)nextPage + sizeof(kma_page_t));
+        newFreeHeader->nextBase = coalescedBlock->nextBase;
+        pageHeader = (kma_page_t*) nextPage->ptr;
       }
     } else {
       D(printf("Here\n"));
