@@ -266,6 +266,13 @@ free_block* coalesce(free_block* prevFreeBlock, free_block* newNode) {
   return newNode; 
 } 
 
+kma_page_t* findNextPage(free_block* currNode) {
+  if (currNode->nextBase != NULL) {
+    return BASEADDR(currNode->nextBase);
+  }
+  else return NULL;
+}
+
 void kma_free(void* ptr, kma_size_t size) {
   
   //D(exit(0));
@@ -325,7 +332,7 @@ void kma_free(void* ptr, kma_size_t size) {
     D(printf("beginning of page to free: %x\n", pageToFree));
 
     // Find out if this is first page
-    if (pageToFree == pageHeader) {
+    if (pageToFree->ptr == pageHeader) {
       D(printf("uhhh\n"));
       // Need to reset first block to that of next page
       // Also check if this is only page
@@ -334,7 +341,7 @@ void kma_free(void* ptr, kma_size_t size) {
         pageHeader = NULL;
         return;
       } else {
-        kma_page_t* nextPage = pageToFree + PAGESIZE;
+        kma_page_t* nextPage = findNextPage(coalescedBlock);
         free_block* newFreeHeader = (free_block*)((void*)nextPage + sizeof(kma_page_t));
         newFreeHeader->nextBase = coalescedBlock->nextBase;
         pageHeader = (kma_page_t*) nextPage->ptr;
