@@ -34,7 +34,7 @@
 #ifdef KMA_RM
 #define __KMA_IMPL__
 
-#define DEBUG 0
+//#define DEBUG 0
 
  #ifdef DEBUG
 #  define D(x) x
@@ -78,7 +78,7 @@ void printFreeList() {
   free_block* startOfList = (void*)pageHeader + sizeof(kma_page_t);
   free_block* node = startOfList->nextBase;
   while(node != NULL) {
-    printf("Loc: %x\t", (void*)node);
+    printf("Loc: %x\t", (unsigned int)node);
     printf("Size: %d\n", (int)node->size);
     node = node->nextBase;
   }
@@ -330,7 +330,7 @@ void kma_free(void* ptr, kma_size_t size) {
       void* nextPage = pageToFree + PAGESIZE;
       free_block* newPageHeader = nextPage + sizeof(kma_page_t);
       newPageHeader->nextBase = coalescedBlock->nextBase;
-      pageHeader = newPageHeader;
+      pageHeader = (kma_page_t*) newPageHeader;
     } else {
       D(printf("Here\n"));
       // Still need to adjust pointer
@@ -350,7 +350,7 @@ void kma_free(void* ptr, kma_size_t size) {
     // }
 
     free_page(pageToFree);
-    printf("got here\n");
+    D(printf("got here\n"));
   }
 }
 
