@@ -87,23 +87,6 @@ void printFreeList() {
 void removeFreeFromList(free_block* prevNode, kma_size_t size) {
   // If prevBlock is NULL, then previous is pageHeader
 
-  // if (prevNode == NULL) {
-  //   // PREVNODE IS Freelist header
-  //   free_block* currNode = pageHeader->ptr;
-  //   if (currNode->size == size) {
-  //     pageHeader->ptr = currNode->nextBase;
-  //   } else {
-  //     int currNodeSize = currNode->size;
-  //     free_block* currNodeNext = currNode->nextBase;
-  //     currNode = (free_block*)((void *)(currNode)+size); 
-      
-  //     //currNode = pageHeader->ptr;
-  //     pageHeader->ptr = currNode;
-  //     currNode->size = currNodeSize - size;
-  //     currNode->nextBase = currNodeNext;
-  //     //currNode->nextBase = NULL;  WHY?
-  //   }
-  //} else {
     free_block* currNode = prevNode->nextBase;
     // If size allocated == size available, remove node
     if (currNode->size == size) {
@@ -116,7 +99,6 @@ void removeFreeFromList(free_block* prevNode, kma_size_t size) {
       prevNode->nextBase = currNode;
       currNode->nextBase = currNodeNext;
       currNode->size = currNodeSize - size; 
-      //prevNode->nextBase->nextBase = NULL;
     }
     D(printf("New free block is at: %x\n", (void*)currNode));
     D(printf("New size of free block: %d\n\n\n", (int)currNode->size));
@@ -127,6 +109,7 @@ void removeFreeFromList(free_block* prevNode, kma_size_t size) {
 void*
 kma_malloc(kma_size_t size)
 { 
+
   D(printf("\n\n======== MALLOCING BLOCK OF SIZE %d =======\n\n", size));
 
   if (pageHeader == NULL){
@@ -145,8 +128,6 @@ kma_malloc(kma_size_t size)
 
     D(printf("PageHeader is at: %x\n", (kma_page_t*)pageHeader));
 
-    //pageHeader->ptr = (free_block*)((void *)page + sizeof(kma_page_t) + size);
-
     // Set header to beginning of page we're allocating
     free_block* freeList = (free_block*)((void*)(pageHeader) + sizeof(kma_page_t));
     freeList->size = -1;
@@ -161,8 +142,10 @@ kma_malloc(kma_size_t size)
     firstFree->nextBase = NULL;
     firstFree->size = (PAGESIZE - sizeof(kma_page_t) - sizeof(free_block) - size);
     D(printf("New size of free block: %d\n", (int)firstFree->size));
-    D(printf("What are we returning?: %x\n", ((void *) pageHeader) + sizeof(kma_page_t) + sizeof(free_block)));
-    //D(exit(0));
+
+    D(printf("What are we returning?: %x\n\n\n", ((void *) pageHeader) + sizeof(kma_page_t) + sizeof(free_block)));
+
+
     D(printFreeList());
     return (kma_page_t*)(((void *) pageHeader) + sizeof(kma_page_t) + sizeof(free_block));
   } 
@@ -205,8 +188,6 @@ kma_malloc(kma_size_t size)
       kma_page_t* newPage = get_page();
       *((kma_page_t**)newPage->ptr) = newPage;
       D(printf("First page: %x\n", (void*)pageHeader));
-      //D(printf("New page: %x\n", (void*)newPage->ptr));
-      //pageHeader = (kma_page_t*)page->ptr;
 
       kma_page_t* newPageHeader = (kma_page_t*)newPage->ptr;
       D(printf("New page: %x\n", (void*)newPage->ptr));
@@ -218,7 +199,6 @@ kma_malloc(kma_size_t size)
       newNode->nextBase = NULL;
       newNode->size = PAGESIZE - sizeof(kma_page_t) - sizeof(free_block) - size;
       D(printf("Page size: %d\n", (int) node->nextBase->size));
-      //node->nextBase = newPage->ptr + sizeof(kma_page_t*);
       D(printFreeList);
       return (free_block*)((void*)newFreeList + sizeof(free_block));
     }
@@ -266,7 +246,7 @@ free_block* coalesce(free_block* prevFreeBlock, free_block* newNode) {
 
 kma_page_t* findNextPage(free_block* currNode) {
   if (currNode->nextBase != NULL) {
-    return BASEADDR(currNode->nextBase);
+    return (kma_page_t*)BASEADDR(currNode->nextBase);
   }
   else return NULL;
 }
@@ -274,7 +254,6 @@ kma_page_t* findNextPage(free_block* currNode) {
 void kma_free(void* ptr, kma_size_t size) {
   
   D(printf("\n======== FREEING BLOCK OF SIZE %d AT PTR %x =======\n\n", size, ptr));
-  D(printf("------------------------------------\n"));
 
   free_block* prevFreeBlock = NULL;
   free_block* startOfFreeMemory = (free_block*)((void*)pageHeader + sizeof(kma_page_t));
@@ -282,11 +261,9 @@ void kma_free(void* ptr, kma_size_t size) {
   if (pageHeader==NULL) // Something went wrong
     return;
 
-
     free_block* newNode = NULL;
-    free_block* firstFreeBlock = (free_block*)(startOfFreeMemory->nextBase);
+    free_block* firstFreeBlock = startOfFreeMemory->nextBase;
     D(printf("First free node is: %x\n", (void*) firstFreeBlock));
-    
 
       prevFreeBlock = findFreeBlockInsertionPoint(ptr);
       D(printf("Block insertion point: %x\n", (void*) prevFreeBlock));
@@ -305,7 +282,6 @@ void kma_free(void* ptr, kma_size_t size) {
   if (coalescedBlock->size == PAGESIZE - sizeof(kma_page_t) - sizeof(free_block)) {
     D(printf("NOW ATTEMPTING TO FREE A PAGE\n"));
     // Find the beginning of current page
-    //free_block* coalescedCopy = coalescedBlock;
     kma_page_t* pageToFree = BASEADDR(coalescedBlock);
     pageToFree = *((kma_page_t**)pageToFree);
 
