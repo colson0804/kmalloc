@@ -45,6 +45,7 @@
 #include <assert.h>
 #include <stdlib.h>
 #include <stdio.h>
+#include <time.h>
 
 /************Private include**********************************************/
 #include "kma_page.h"
@@ -66,6 +67,12 @@ typedef struct resource_map
 /************Global Variables*********************************************/
 
 static kma_page_t* pageHeader = NULL;
+size_t totalRequested = 0;
+size_t totalNeeded = 0;
+int mallocCounter = 0;
+int freeCounter = 0;
+time_t worstMallocTime = 0;
+time_t worstFreeTime = 0;
 
 /************Function Prototypes******************************************/
 
@@ -126,9 +133,17 @@ free_block* findFreeBlockInsertionPoint(void* ptr){
 void*
 kma_malloc(kma_size_t size)
 { 
+  mallocCounter++;
+  time_t start = time(NULL);
+  time_t end;
+  time_t mallocTime;
+  totalRequested += size;
+  totalNeeded += size;
+
   if (pageHeader == NULL){
     /* If firstFree is undefined, point it to the top of the page */
     kma_page_t* page = get_page();
+    totalNeeded += sizeof(kma_page_t);
 
     *((kma_page_t**)page->ptr) = page;
 
@@ -143,7 +158,9 @@ kma_malloc(kma_size_t size)
     freeList->nextBase = firstFree;
     firstFree->nextBase = NULL;
     firstFree->size = (PAGESIZE - sizeof(kma_page_t) - sizeof(free_block) - size);
-    
+    end = time(NULL);
+    mallocTime = end - start;
+    if (mallocTime > worstMallocTime) worstMallocTime = mallocTime;
     return (kma_page_t*)(((void *) pageHeader) + sizeof(kma_page_t) + sizeof(free_block));
   } 
   else {
@@ -157,6 +174,9 @@ kma_malloc(kma_size_t size)
       if ((node->size >= size) && (node->size - size > sizeof(free_block))) {
         // CHANGE FREE LIST
         removeFreeFromList(prevNode, size);
+        end = time(NULL);
+        mallocTime = end - start;
+        if (mallocTime > worstMallocTime) worstMallocTime = mallocTime;
         return node;
       } else {
         prevNode = node;
@@ -171,9 +191,13 @@ kma_malloc(kma_size_t size)
       // Allocate this space
       // CHANGE FREE LIST
       removeFreeFromList(prevNode, size);
+      end = time(NULL);
+      mallocTime = end - start;
+      if (mallocTime > worstMallocTime) worstMallocTime = mallocTime;
       return node;
     } else {
       kma_page_t* newPage = get_page();
+      totalNeeded += sizeof(kma_page_t);
       *((kma_page_t**)newPage->ptr) = newPage;
 
       kma_page_t* newPageHeader = (kma_page_t*)newPage->ptr;
@@ -182,13 +206,16 @@ kma_malloc(kma_size_t size)
       newFreeList->size = -1;
       free_block* newNode = (free_block*)((void*)newFreeList + sizeof(free_block) + size);
 
-	free_block* newPrevFree = findFreeBlockInsertionPoint((void*)newNode);
+  	free_block* newPrevFree = findFreeBlockInsertionPoint((void*)newNode);
 
-	newNode->nextBase = newPrevFree->nextBase;
-	newPrevFree->nextBase = newNode;
+  	newNode->nextBase = newPrevFree->nextBase;
+  	newPrevFree->nextBase = newNode;
 
       newNode->size = PAGESIZE - sizeof(kma_page_t) - sizeof(free_block) - size;
 
+      end = time(NULL);
+      mallocTime = end - start;
+      if (mallocTime > worstMallocTime) worstMallocTime = mallocTime;
       return (free_block*)((void*)newFreeList + sizeof(free_block));
 
     }
@@ -223,11 +250,12 @@ kma_page_t* findNextPage(free_block* currNode) {
 
 void kma_free(void* ptr, kma_size_t size) {
 
+  freeCounter++;
   free_block* prevFreeBlock = NULL;
   free_block* startOfFreeMemory = (free_block*)((void*)pageHeader + sizeof(kma_page_t));
-
-  if (pageHeader==NULL) // Something went wrong
-    return;
+  time_t start = time(NULL);
+  time_t end;
+  time_t freeTime;
 
     free_block* newNode = NULL;
     free_block* firstFreeBlock = startOfFreeMemory->nextBase;
@@ -255,6 +283,15 @@ void kma_free(void* ptr, kma_size_t size) {
       if (firstFreeBlock->nextBase == NULL) {
         free_page(pageToFree);
         pageHeader = NULL;
+        end = time(NULL);
+        freeTime = end - start;
+        if (freeTime > worstFreeTime) worstFreeTime = freeTime;
+        printf("Total requested: %d\n", (int)totalRequested);
+        printf("Total needed: %d\n", (int)totalNeeded);
+        printf("Number of mallocs: %d\n", mallocCounter);
+        printf("Number of frees: %d\n", freeCounter);
+        printf("Worst allocation time: %d\n", (int) worstMallocTime);
+        printf("Worst free time: %d\n\n", (int) worstFreeTime);
         return;
       } else {
         kma_page_t* nextPage = findNextPage(coalescedBlock);
@@ -269,7 +306,19 @@ void kma_free(void* ptr, kma_size_t size) {
     }
 
     free_page(pageToFree);
+    
   }
+
+  end = time(NULL);
+  freeTime = end - start;
+  if (freeTime > worstFreeTime) worstFreeTime = freeTime;
+  
+  printf("Total requested: %d\n", (int)totalRequested);
+  printf("Total needed: %d\n", (int)totalNeeded);
+  printf("Number of mallocs: %d\n", mallocCounter);
+  printf("Number of frees: %d\n", freeCounter);
+  printf("Worst allocation time: %d\n", (int) worstMallocTime);
+  printf("Worst free time: %d\n\n", (int) worstFreeTime);
 }
 
 #endif // KMA_RM
