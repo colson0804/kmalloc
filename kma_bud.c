@@ -75,11 +75,11 @@
 
  static kma_page_t* pageHeader = NULL;
  size_t totalRequested = 0;
- size_t totalNeeded = 0;
+ size_t totalNeeded = 8192;
  int mallocCounter = 0;
  int freeCounter = 0;
- time_t worstMallocTime = 0;
- time_t worstFreeTime = 0;
+ int worstMallocTime = 0;
+ int worstFreeTime = 0;
 
 /************Function Prototypes******************************************/
   
@@ -245,16 +245,16 @@ void* kma_malloc(kma_size_t size)
   // Initialize free-list and bitmap
   mallocCounter++;
   totalRequested += size;
-  time_t start = time(NULL);
-  time_t end;
-  time_t mallocTime;
+  struct timeval start, end;
+  int mallocTime;
+  gettimeofday(&start, NULL);
   totalNeeded = totalNeeded + size + roundToPowerOfTwo(size);
 	if(size > 4096){
 		kma_page_t* page;
   		page = get_page();
 		*((kma_page_t**)page->ptr) = page;
-    end = time(NULL);
-    mallocTime = end - start;
+    gettimeofday(&end, NULL);
+    mallocTime = end.tv_usec - start.tv_usec;
     if (mallocTime > worstMallocTime) worstMallocTime = mallocTime;
 		return page->ptr + sizeof(kma_page_t*);
 	}
@@ -265,15 +265,16 @@ void* kma_malloc(kma_size_t size)
 	
   kma_page_t* allocatedPointer = (kma_page_t*)allocateSpace(size); 
   if (allocatedPointer != NULL) {
-
-	return allocatedPointer; //also bitmap size
+    gettimeofday(&end, NULL);
+    mallocTime = end.tv_usec - start.tv_usec;
+	 return allocatedPointer; //also bitmap size
   } else {
 	 initializePage(size);	 
 	 // Actually fill the space
 	 allocatedPointer = (kma_page_t*) allocateSpace(size);
 
-   end = time(NULL);
-   mallocTime = end - start;
+   gettimeofday(&end, NULL);
+    mallocTime = end.tv_usec - start.tv_usec;
    if (mallocTime > worstMallocTime) worstMallocTime = mallocTime;
 	 return allocatedPointer; //also bitmap size
 
@@ -444,24 +445,24 @@ void checkForFreePage(void* ptr){
 
 void kma_free(void* ptr, kma_size_t size) {
   freeCounter++;
-  time_t start = time(NULL);
-  time_t end;
-  time_t freeTime;
+  struct timeval start, end;
+  int freeTime;
+  gettimeofday(&start, NULL);
 
 	if (size > 4096){
 		kma_page_t* page;  
   	page = *((kma_page_t**)(ptr - sizeof(kma_page_t*))); 
   	free_page(page);
-    end = time(NULL);
-    freeTime = end - start;
+    gettimeofday(&end, NULL);
+    freeTime = end.tv_usec - start.tv_usec;
     if (freeTime > worstFreeTime) worstFreeTime = freeTime;
 
     printf("Total requested: %d\n", (int)totalRequested);
     printf("Total needed: %d\n", (int)totalNeeded);
     printf("Number of mallocs: %d\n", mallocCounter);
     printf("Number of frees: %d\n", freeCounter);
-    printf("Worst allocation time (ms): %d\n", (int) worstMallocTime);
-    printf("Worst free time (ms): %d\n\n", (int) worstFreeTime);
+    printf("Worst allocation time (microseconds): %d\n", (int) worstMallocTime);
+    printf("Worst free time (microseconds): %d\n\n", (int) worstFreeTime);
 		return;
 	}
 
@@ -470,16 +471,16 @@ void kma_free(void* ptr, kma_size_t size) {
   coalesce(ptr, size);
   checkForFreePage(ptr);
 
-  end = time(NULL);
-  freeTime = end - start;
+  gettimeofday(&end, NULL);
+  freeTime = end.tv_usec - start.tv_usec;
   if (freeTime > worstFreeTime) worstFreeTime = freeTime;
 
   printf("Total requested: %d\n", (int)totalRequested);
   printf("Total needed: %d\n", (int)totalNeeded);
   printf("Number of mallocs: %d\n", mallocCounter);
   printf("Number of frees: %d\n", freeCounter);
-  printf("Worst allocation time (ms): %d\n", (int) worstMallocTime);
-  printf("Worst free time (ms): %d\n\n", (int) worstFreeTime);
+  printf("Worst allocation time (microseconds): %d\n", (int) worstMallocTime);
+  printf("Worst free time (microseconds): %d\n\n", (int) worstFreeTime);
 }
 
 #endif // KMA_BUD
