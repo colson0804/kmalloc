@@ -45,7 +45,7 @@
 #include <assert.h>
 #include <stdlib.h>
 #include <stdio.h>
-#include <time.h>
+#include <sys/time.h>
 
 /************Private include**********************************************/
 #include "kma_page.h"
@@ -71,8 +71,8 @@ size_t totalRequested = 0;
 size_t totalNeeded = 0;
 int mallocCounter = 0;
 int freeCounter = 0;
-time_t worstMallocTime = 0;
-time_t worstFreeTime = 0;
+int worstMallocTime;
+int worstFreeTime;
 
 /************Function Prototypes******************************************/
 
@@ -134,9 +134,9 @@ void*
 kma_malloc(kma_size_t size)
 { 
   mallocCounter++;
-  time_t start = time(NULL);
-  time_t end;
-  time_t mallocTime;
+  struct timeval start, end;
+  int mallocTime;
+  gettimeofday(&start, NULL);
   totalRequested += size;
   totalNeeded += size;
 
@@ -158,8 +158,8 @@ kma_malloc(kma_size_t size)
     freeList->nextBase = firstFree;
     firstFree->nextBase = NULL;
     firstFree->size = (PAGESIZE - sizeof(kma_page_t) - sizeof(free_block) - size);
-    end = time(NULL);
-    mallocTime = end - start;
+    gettimeofday(&end, NULL);
+    mallocTime = end.tv_usec - start.tv_usec;
     if (mallocTime > worstMallocTime) worstMallocTime = mallocTime;
     return (kma_page_t*)(((void *) pageHeader) + sizeof(kma_page_t) + sizeof(free_block));
   } 
@@ -174,8 +174,8 @@ kma_malloc(kma_size_t size)
       if ((node->size >= size) && (node->size - size > sizeof(free_block))) {
         // CHANGE FREE LIST
         removeFreeFromList(prevNode, size);
-        end = time(NULL);
-        mallocTime = end - start;
+        gettimeofday(&end, NULL);
+        mallocTime = end.tv_usec - start.tv_usec;
         if (mallocTime > worstMallocTime) worstMallocTime = mallocTime;
         return node;
       } else {
@@ -191,8 +191,8 @@ kma_malloc(kma_size_t size)
       // Allocate this space
       // CHANGE FREE LIST
       removeFreeFromList(prevNode, size);
-      end = time(NULL);
-      mallocTime = end - start;
+      gettimeofday(&end, NULL);
+      mallocTime = end.tv_usec - start.tv_usec;
       if (mallocTime > worstMallocTime) worstMallocTime = mallocTime;
       return node;
     } else {
@@ -213,8 +213,8 @@ kma_malloc(kma_size_t size)
 
       newNode->size = PAGESIZE - sizeof(kma_page_t) - sizeof(free_block) - size;
 
-      end = time(NULL);
-      mallocTime = end - start;
+      gettimeofday(&end, NULL);
+      mallocTime = end.tv_usec - start.tv_usec;
       if (mallocTime > worstMallocTime) worstMallocTime = mallocTime;
       return (free_block*)((void*)newFreeList + sizeof(free_block));
 
@@ -253,9 +253,9 @@ void kma_free(void* ptr, kma_size_t size) {
   freeCounter++;
   free_block* prevFreeBlock = NULL;
   free_block* startOfFreeMemory = (free_block*)((void*)pageHeader + sizeof(kma_page_t));
-  time_t start = time(NULL);
-  time_t end;
-  time_t freeTime;
+  struct timeval start, end;
+  int freeTime;
+  gettimeofday(&start, NULL);
 
     free_block* newNode = NULL;
     free_block* firstFreeBlock = startOfFreeMemory->nextBase;
@@ -283,15 +283,15 @@ void kma_free(void* ptr, kma_size_t size) {
       if (firstFreeBlock->nextBase == NULL) {
         free_page(pageToFree);
         pageHeader = NULL;
-        end = time(NULL);
-        freeTime = end - start;
+        gettimeofday(&end, NULL);
+        freeTime = end.tv_usec - start.tv_usec;
         if (freeTime > worstFreeTime) worstFreeTime = freeTime;
         printf("Total requested: %d\n", (int)totalRequested);
         printf("Total needed: %d\n", (int)totalNeeded);
         printf("Number of mallocs: %d\n", mallocCounter);
         printf("Number of frees: %d\n", freeCounter);
-        printf("Worst allocation time: %d\n", (int) worstMallocTime);
-        printf("Worst free time: %d\n\n", (int) worstFreeTime);
+        printf("Worst allocation time (ms): %d\n", (int) worstMallocTime);
+        printf("Worst free time (ms): %d\n\n", (int) worstFreeTime);
         return;
       } else {
         kma_page_t* nextPage = findNextPage(coalescedBlock);
@@ -309,16 +309,16 @@ void kma_free(void* ptr, kma_size_t size) {
     
   }
 
-  end = time(NULL);
-  freeTime = end - start;
+  gettimeofday(&end, NULL);
+  freeTime = end.tv_usec - start.tv_usec;
   if (freeTime > worstFreeTime) worstFreeTime = freeTime;
   
   printf("Total requested: %d\n", (int)totalRequested);
   printf("Total needed: %d\n", (int)totalNeeded);
   printf("Number of mallocs: %d\n", mallocCounter);
   printf("Number of frees: %d\n", freeCounter);
-  printf("Worst allocation time: %d\n", (int) worstMallocTime);
-  printf("Worst free time: %d\n\n", (int) worstFreeTime);
+  printf("Worst allocation time (ms): %d\n", (int) worstMallocTime);
+  printf("Worst free time (ms: %d\n\n", (int) worstFreeTime);
 }
 
 #endif // KMA_RM

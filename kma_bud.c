@@ -54,7 +54,7 @@
 #include <string.h>
 #include <stdlib.h>
 #include <stdio.h>
-#include <time.h>
+#include <sys/time.h>
 /************Private include**********************************************/
 #include "kma_page.h"
 #include "kma.h"
@@ -460,8 +460,8 @@ void kma_free(void* ptr, kma_size_t size) {
     printf("Total needed: %d\n", (int)totalNeeded);
     printf("Number of mallocs: %d\n", mallocCounter);
     printf("Number of frees: %d\n", freeCounter);
-    printf("Worst allocation time: %d\n", (int) worstMallocTime);
-    printf("Worst free time: %d\n\n", (int) worstFreeTime);
+    printf("Worst allocation time (ms): %d\n", (int) worstMallocTime);
+    printf("Worst free time (ms): %d\n\n", (int) worstFreeTime);
 		return;
 	}
 
@@ -478,8 +478,8 @@ void kma_free(void* ptr, kma_size_t size) {
   printf("Total needed: %d\n", (int)totalNeeded);
   printf("Number of mallocs: %d\n", mallocCounter);
   printf("Number of frees: %d\n", freeCounter);
-  printf("Worst allocation time: %d\n", (int) worstMallocTime);
-  printf("Worst free time: %d\n\n", (int) worstFreeTime);
+  printf("Worst allocation time (ms): %d\n", (int) worstMallocTime);
+  printf("Worst free time (ms): %d\n\n", (int) worstFreeTime);
 }
 
 #endif // KMA_BUD
