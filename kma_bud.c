@@ -54,6 +54,7 @@
 #include <string.h>
 #include <stdlib.h>
 #include <stdio.h>
+#include <time.h>
 /************Private include**********************************************/
 #include "kma_page.h"
 #include "kma.h"
@@ -73,6 +74,12 @@
 /************Global Variables*********************************************/
 
  static kma_page_t* pageHeader = NULL;
+ size_t totalRequested = 0;
+ size_t totalNeeded = 0;
+ int mallocCounter = 0;
+ int freeCounter = 0;
+ time_t worstMallocTime = 0;
+ time_t worstFreeTime = 0;
 
 /************Function Prototypes******************************************/
   
@@ -236,11 +243,19 @@ free_block* allocateSpace(kma_size_t size) {
 void* kma_malloc(kma_size_t size)
 {
   // Initialize free-list and bitmap
-
+  mallocCounter++;
+  totalRequested += size;
+  time_t start = time(NULL);
+  time_t end;
+  time_t mallocTime;
+  totalNeeded = totalNeeded + size + roundToPowerOfTwo(size);
 	if(size > 4096){
 		kma_page_t* page;
   		page = get_page();
 		*((kma_page_t**)page->ptr) = page;
+    end = time(NULL);
+    mallocTime = end - start;
+    if (mallocTime > worstMallocTime) worstMallocTime = mallocTime;
 		return page->ptr + sizeof(kma_page_t*);
 	}
 
@@ -257,6 +272,9 @@ void* kma_malloc(kma_size_t size)
 	 // Actually fill the space
 	 allocatedPointer = (kma_page_t*) allocateSpace(size);
 
+   end = time(NULL);
+   mallocTime = end - start;
+   if (mallocTime > worstMallocTime) worstMallocTime = mallocTime;
 	 return allocatedPointer; //also bitmap size
 
   }
@@ -425,10 +443,25 @@ void checkForFreePage(void* ptr){
 }
 
 void kma_free(void* ptr, kma_size_t size) {
+  freeCounter++;
+  time_t start = time(NULL);
+  time_t end;
+  time_t freeTime;
+
 	if (size > 4096){
 		kma_page_t* page;  
-  		page = *((kma_page_t**)(ptr - sizeof(kma_page_t*))); 
-  		free_page(page);
+  	page = *((kma_page_t**)(ptr - sizeof(kma_page_t*))); 
+  	free_page(page);
+    end = time(NULL);
+    freeTime = end - start;
+    if (freeTime > worstFreeTime) worstFreeTime = freeTime;
+
+    printf("Total requested: %d\n", (int)totalRequested);
+    printf("Total needed: %d\n", (int)totalNeeded);
+    printf("Number of mallocs: %d\n", mallocCounter);
+    printf("Number of frees: %d\n", freeCounter);
+    printf("Worst allocation time: %d\n", (int) worstMallocTime);
+    printf("Worst free time: %d\n\n", (int) worstFreeTime);
 		return;
 	}
 
@@ -436,6 +469,17 @@ void kma_free(void* ptr, kma_size_t size) {
   clearBitMap(ptr, size);
   coalesce(ptr, size);
   checkForFreePage(ptr);
+
+  end = time(NULL);
+  freeTime = end - start;
+  if (freeTime > worstFreeTime) worstFreeTime = freeTime;
+
+  printf("Total requested: %d\n", (int)totalRequested);
+  printf("Total needed: %d\n", (int)totalNeeded);
+  printf("Number of mallocs: %d\n", mallocCounter);
+  printf("Number of frees: %d\n", freeCounter);
+  printf("Worst allocation time: %d\n", (int) worstMallocTime);
+  printf("Worst free time: %d\n\n", (int) worstFreeTime);
 }
 
 #endif // KMA_BUD
