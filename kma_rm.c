@@ -71,8 +71,8 @@ size_t totalRequested = 0;
 size_t totalNeeded = 0;
 int mallocCounter = 0;
 int freeCounter = 0;
-int worstMallocTime;
-int worstFreeTime;
+int worstMallocTime = 0;
+int worstFreeTime = 0;
 
 /************Function Prototypes******************************************/
 
@@ -290,8 +290,8 @@ void kma_free(void* ptr, kma_size_t size) {
         printf("Total needed: %d\n", (int)totalNeeded);
         printf("Number of mallocs: %d\n", mallocCounter);
         printf("Number of frees: %d\n", freeCounter);
-        printf("Worst allocation time (ms): %d\n", (int) worstMallocTime);
-        printf("Worst free time (ms): %d\n\n", (int) worstFreeTime);
+        printf("Worst allocation time (microseconds)): %d\n", (int) worstMallocTime);
+        printf("Worst free time (microseconds)): %d\n\n", (int) worstFreeTime);
         return;
       } else {
         kma_page_t* nextPage = findNextPage(coalescedBlock);
@@ -317,8 +317,8 @@ void kma_free(void* ptr, kma_size_t size) {
   printf("Total needed: %d\n", (int)totalNeeded);
   printf("Number of mallocs: %d\n", mallocCounter);
   printf("Number of frees: %d\n", freeCounter);
-  printf("Worst allocation time (ms): %d\n", (int) worstMallocTime);
-  printf("Worst free time (ms: %d\n\n", (int) worstFreeTime);
+  printf("Worst allocation time (microseconds)): %d\n", (int) worstMallocTime);
+  printf("Worst free time (microseconds): %d\n\n", (int) worstFreeTime);
 }
 
 #endif // KMA_RM
