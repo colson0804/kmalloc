@@ -247,14 +247,13 @@ void* kma_malloc(kma_size_t size)
   if (!pageHeader) {
   initializeFreeList();
   }
-  free_block* freeList = (free_block*)((void*)(pageHeader) + sizeof(kma_page_t));
 	
   kma_page_t* allocatedPointer = (kma_page_t*)allocateSpace(size); 
   if (allocatedPointer != NULL) {
 
 	return allocatedPointer; //also bitmap size
   } else {
-	 kma_page_t* newPage = initializePage(size);	 
+	 initializePage(size);	 
 	 // Actually fill the space
 	 allocatedPointer = (kma_page_t*) allocateSpace(size);
 
@@ -291,7 +290,6 @@ void coalesce(void* ptr, kma_size_t size){
   unsigned char* bitmap = (unsigned char*)(startOfPage+32);
 
   int offset = (int)((void*)ptr - startOfPage);
-  int blockOffset = offset/32;
   int numBits = sizeOfBlock/32;
   /*
     CHECK FOR BUDDY:
