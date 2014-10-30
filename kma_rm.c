@@ -161,7 +161,7 @@ kma_malloc(kma_size_t size)
     firstFree->nextBase = NULL;
     firstFree->size = (PAGESIZE - sizeof(kma_page_t) - sizeof(free_block) - size);
     D(printf("New size of free block: %d\n", (int)firstFree->size));
-    D(printf("What are we returning?: %x\n\n\n", ((void *) pageHeader) + sizeof(kma_page_t) + sizeof(free_block)));
+    D(printf("What are we returning?: %x\n", ((void *) pageHeader) + sizeof(kma_page_t) + sizeof(free_block)));
     //D(exit(0));
     D(printFreeList());
     return (kma_page_t*)(((void *) pageHeader) + sizeof(kma_page_t) + sizeof(free_block));
@@ -308,7 +308,7 @@ void kma_free(void* ptr, kma_size_t size) {
     //free_block* coalescedCopy = coalescedBlock;
     kma_page_t* pageToFree = BASEADDR(coalescedBlock);
     pageToFree = *((kma_page_t**)pageToFree);
-    D(printf("WHAT\n"));
+
     D(printf("address of coalesced block: %x\n", (void*)coalescedBlock));
     D(printf("beginning of page to free: %x\n", pageToFree->ptr));
 
@@ -328,7 +328,7 @@ void kma_free(void* ptr, kma_size_t size) {
         pageHeader = (kma_page_t*) nextPage->ptr;
       }
     } else {
-      D(printf("no the first page\n"));
+      D(printf("not the first page\n"));
       // Still need to adjust pointer
       prevFreeBlock = findFreeBlockInsertionPoint(coalescedBlock);
       D(printf("Previous free block: %d\n", (int) prevFreeBlock->size));
