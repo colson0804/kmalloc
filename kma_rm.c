@@ -34,7 +34,7 @@
 #ifdef KMA_RM
 #define __KMA_IMPL__
 
-#define DEBUG 0
+//#define DEBUG 0
 
  #ifdef DEBUG
 #  define D(x) x
@@ -104,6 +104,24 @@ void removeFreeFromList(free_block* prevNode, kma_size_t size) {
     D(printf("New size of free block: %d\n\n\n", (int)currNode->size));
   //}
   return;
+}
+
+
+free_block* findFreeBlockInsertionPoint(void* ptr){
+  free_block* freeList = (free_block*)((void*)pageHeader + sizeof(kma_page_t));
+  free_block* node = freeList;
+
+  while (node) {
+    if (node->nextBase == NULL){
+      return node;
+    }
+    else if(node->nextBase >= (free_block*) ptr){ 
+      return node;
+    } else {
+      node = node->nextBase;
+    }
+  }
+  return NULL;
 }
 
 void*
@@ -191,43 +209,34 @@ kma_malloc(kma_size_t size)
 
       kma_page_t* newPageHeader = (kma_page_t*)newPage->ptr;
       D(printf("New page: %x\n", (void*)newPage->ptr));
+
       free_block* newFreeList = (free_block*)((void*)newPageHeader + sizeof(kma_page_t));
       newFreeList->size = -1;
       free_block* newNode = (free_block*)((void*)newFreeList + sizeof(free_block) + size);
-      node->nextBase = newNode;
 
-      newNode->nextBase = NULL;
+	free_block* newPrevFree = findFreeBlockInsertionPoint((void*)newNode);
+	
+	D(printf("newPrevFree->nextBase: %x, newNode: %x\n", newPrevFree->nextBase, newNode, newNode->nextBase));
+
+	newNode->nextBase = newPrevFree->nextBase;
+	newPrevFree->nextBase = newNode;
+
       newNode->size = PAGESIZE - sizeof(kma_page_t) - sizeof(free_block) - size;
-      D(printf("Page size: %d\n", (int) node->nextBase->size));
+
       D(printFreeList);
       return (free_block*)((void*)newFreeList + sizeof(free_block));
+
     }
   }
 }
 
-free_block* findFreeBlockInsertionPoint(void* ptr){
-  free_block* freeList = (free_block*)((void*)pageHeader + sizeof(kma_page_t));
-  free_block* node = freeList;
-  printf("What the fuck is the node? Is it Null? Please tell me it\'s not null: %x\n", (unsigned int)node);
-  while (node) {
-    if (node->nextBase == NULL){
-      return node;
-    }
-    else if(node->nextBase >= (free_block*) ptr){ 
-      return node;
-    } else {
-      node = node->nextBase;
-    }
-  }
-  return NULL;
-}
 
 free_block* coalesce(free_block* prevFreeBlock, free_block* newNode) {
 
   if ((void*)prevFreeBlock + prevFreeBlock->size == (void*)newNode && (void*)newNode + newNode->size == (void*)newNode->nextBase) {  // Both previous and next node are free
-    D(printf("Size of block in coalesce: %d\n", prevFreeBlock->size));
-    D(printf("Size of block in coalesce: %d\n", newNode->size));
-    D(printf("Size of block in coalesce: %d\n", newNode->nextBase->size));
+    D(printf("prevFreeBlock->size: %d\n", prevFreeBlock->size));
+    D(printf("newNode->size: %d\n", newNode->size));
+    D(printf("newNode->nextBase->size: %d\n", newNode->nextBase->size));
     prevFreeBlock->size = prevFreeBlock->size + newNode->size + newNode->nextBase->size;
     prevFreeBlock->nextBase = newNode->nextBase->nextBase;
     return prevFreeBlock;
@@ -236,7 +245,6 @@ free_block* coalesce(free_block* prevFreeBlock, free_block* newNode) {
     prevFreeBlock->nextBase = newNode->nextBase;
     return prevFreeBlock;
   } else if ((void*)newNode + newNode->size == (void*)newNode->nextBase) { // Free block after it
-    D(printf("here\n"));
     newNode->size = newNode->size + newNode->nextBase->size;
     newNode->nextBase = newNode->nextBase->nextBase;
     return newNode;
@@ -245,6 +253,8 @@ free_block* coalesce(free_block* prevFreeBlock, free_block* newNode) {
 } 
 
 kma_page_t* findNextPage(free_block* currNode) {
+
+	D(printf("currNode: %x, currNode->nextBase: %x, currNode->nextBase->nextBase: %x\n", currNode, currNode->nextBase, currNode->nextBase->nextBase));
   if (currNode->nextBase != NULL) {
     return (kma_page_t*)BASEADDR(currNode->nextBase);
   }
@@ -298,16 +308,21 @@ void kma_free(void* ptr, kma_size_t size) {
         pageHeader = NULL;
         return;
       } else {
+	D(printf("its not the only page\n"));
         kma_page_t* nextPage = findNextPage(coalescedBlock);
         free_block* newFreeHeader = (free_block*)((void*)nextPage + sizeof(kma_page_t));
+	D(printf("nextPage: %x, newFreeHeader: %x\n"));
         newFreeHeader->nextBase = coalescedBlock->nextBase;
-        pageHeader = (kma_page_t*) nextPage->ptr;
+	D(printf("newFreeHeader->nextBase: %x\n", newFreeHeader->nextBase)); 
+        pageHeader = (kma_page_t*) nextPage;
+	D(printf("pageHeader is now: %x\n", pageHeader)); 
       }
     } else {
       D(printf("not the first page\n"));
       // Still need to adjust pointer
       prevFreeBlock = findFreeBlockInsertionPoint(coalescedBlock);
-      D(printf("Previous free block: %d\n", (int) prevFreeBlock->size));
+      D(printf("Previous free block: %x, size: %d\n", prevFreeBlock, prevFreeBlock->size));
+	D(printf("prevFree->nextBase: %x, coalesced->nextBase: %x\n", prevFreeBlock->nextBase, coalescedBlock->nextBase));
       prevFreeBlock->nextBase = coalescedBlock->nextBase;
     }
 
