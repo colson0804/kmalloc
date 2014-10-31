@@ -17,8 +17,22 @@ For each page that we allocated for malloc'ed data, we added a kma_page_t struct
 Since we chose to store this data within each page, we were left with successive blocks of 64, 128, 256,...4096 blocks of free data that we would add to the linked lists of free blocks. It left us with a created tree of free blocks, which saved us in our initial allocation but may have limited our overall flexibility. In the larger scope, choosing to store these structs in each of the pages saved us complexity in having to maintain separate page(s) for that metadata.
 
 
+=========
+ANALYSIS:
+=========
 
+Data: 
+- pages requested comes from end of tracefile testing
+- bytes requested are sum of arguments in kma_malloc
+- bytes needed are requested + overhead for header objects
 
+You can also check out NAMEOFFILEHERE? to see a graph comparison 
+
+Based on 5.trace:
+
+KMA_RM:
+
+KMA_BUD
 
 
  
