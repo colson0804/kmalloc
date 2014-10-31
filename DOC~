@@ -1,0 +1,54 @@
+=======
+KMA_RM:
+=======
+Design decisions for the algorithm:
+
+The only struct we chose to create was a free_block that stored the <base, size> pairs for available free blocks.
+We chose to implement the resource map algorithm by maintaining one kma_page_t pointer called pageHeader that pointed to the earliest page in memory with allocated data. At the front of each page were a kma_page_t struct that contained data about the page and a pointer back to what we should return in kma_free. Directly after it in memory, we kept a free_block* struct that served as a pointer to the next available piece of free memory. If the entire block was allocated, it either pointed to the next available piece of free memory in the future page or was NULL. With the help of some pointer arithmetic, we were able to "walk" along the pages from our first page (via pageHeader) through all available free blocks of memory available.
+
+========
+KMA_BUD:
+========
+Design decisions for the algorithm:
+
+We chose to use a similar free_block struct as in KMA_RM for this algorithm.
+We chose to implement the buddy algorithm by using our one kma_page_t pointer to point to single metadata-style page. Within it, we held a kma_page_t struct so we could free it and then allocated blocks of memory to serve as headers to linked lists of free blocks of memory. We treated this section of the page as an array to make it easier for us to iterate over the free linked list headers.
+For each page that we allocated for malloc'ed data, we added a kma_page_t struct at the beginning, followed by a bitmap that marked bits for each of the available blocks. Since each of these were 32 bits, we marked the first two bits as allocated. We checked for free pages by checking if every bit in the bitmap besides the first two was 0.
+Since we chose to store this data within each page, we were left with successive blocks of 64, 128, 256,...4096 blocks of free data that we would add to the linked lists of free blocks. It left us with a created tree of free blocks, which saved us in our initial allocation but may have limited our overall flexibility. In the larger scope, choosing to store these structs in each of the pages saved us complexity in having to maintain separate page(s) for that metadata.
+
+
+=========
+ANALYSIS:
+=========
+
+Data: 
+- pages requested comes from end of tracefile testing
+- bytes requested are sum of arguments in kma_malloc
+- bytes needed are requested + overhead for header objects
+
+You can also check out NAMEOFFILEHERE? to see a graph comparison 
+
+Based on 5.trace:
+
+KMA_RM:
+	Utilization factor: 114818834 / 114901946 = 0.999
+		(only allocates memory user asks for plus page header. This doesn't account for fragmentation)
+	
+	Average allocation time (microseconds): 6
+	Worst allocation time: 8890
+
+	Average free time (microseconds): 15
+	Worst free time: 5969
+
+KMA_BUD:
+	Utilization factor: 114818834 / 252757876 = 0.45
+	
+	Average allocation time: 1
+	Worst allocation time: 3337
+
+	Average free time: 1
+	Worst free time: 1231
+
+ 
+This all makes sense because the resource map optimizes memory utilization more efficiently. Other than the header blocks needed in the pages, the allocator only the amount of memory specifically requested by the program. The Buddy system on the other hand, allocates more memory than is needed. However, the buddy system is much faster, because it is able to search for an available free space much faster through the free lists.
+

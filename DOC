@@ -26,15 +26,29 @@ Data:
 - bytes requested are sum of arguments in kma_malloc
 - bytes needed are requested + overhead for header objects
 
-You can also check out NAMEOFFILEHERE? to see a graph comparison 
+You can also check out kma_output.png and kma_waste.png to see a graph comparison 
 
 Based on 5.trace:
 
 KMA_RM:
+	Utilization factor: 114818834 / 114901946 = 0.999
+		(only allocates memory user asks for plus page header. This doesn't account for fragmentation)
+	
+	Average allocation time (microseconds): 6
+	Worst allocation time: 8890
 
-KMA_BUD
+	Average free time (microseconds): 15
+	Worst free time: 5969
 
+KMA_BUD:
+	Utilization factor: 114818834 / 252757876 = 0.45
+	
+	Average allocation time: 1
+	Worst allocation time: 3337
+
+	Average free time: 1
+	Worst free time: 1231
 
  
-
+This all makes sense because the resource map optimizes memory utilization more efficiently. Other than the header blocks needed in the pages, the allocator only the amount of memory specifically requested by the program. The Buddy system on the other hand, allocates more memory than is needed. However, the buddy system is much faster, because it is able to search for an available free space much faster through the free lists.
 

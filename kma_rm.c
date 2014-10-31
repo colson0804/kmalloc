@@ -301,6 +301,7 @@ void kma_free(void* ptr, kma_size_t size) {
         D(printf("Total needed: %d\n", (int)totalNeeded));
         D(printf("Number of mallocs: %d\n", mallocCounter));
         D(printf("Number of frees: %d\n", freeCounter));
+	D(printf("Total free time: %d\n", totalFreeTime));
         D(printf("Average allocation time: %d\n", averageMallocTime));
         D(printf("Average free time: %d\n", averageFreeTime));
         D(printf("Worst allocation time (microseconds)): %d\n", (int) worstMallocTime));
@@ -329,14 +330,15 @@ void kma_free(void* ptr, kma_size_t size) {
   
   averageMallocTime = totalMallocTime/mallocCounter;
   averageFreeTime = totalFreeTime/freeCounter;
-  printf("Total requested: %d\n", (int)totalRequested);
-  printf("Total needed: %d\n", (int)totalNeeded);
-  printf("Number of mallocs: %d\n", mallocCounter);
-  printf("Number of frees: %d\n", freeCounter);
-  printf("Average allocation time: %d\n", averageMallocTime);
-  printf("Average free time: %d\n", averageFreeTime);
-  printf("Worst allocation time (microseconds)): %d\n", (int) worstMallocTime);
-  printf("Worst free time (microseconds): %d\n\n", (int) worstFreeTime);
+  D(printf("Total requested: %d\n", (int)totalRequested));
+  D(printf("Total needed: %d\n", (int)totalNeeded));
+  D(printf("Number of mallocs: %d\n", mallocCounter));
+  D(printf("Number of frees: %d\n", freeCounter));
+  D(printf("Total free time: %d\n", totalFreeTime));
+  D(printf("Average allocation time: %d\n", averageMallocTime));
+  D(printf("Average free time: %d\n", averageFreeTime));
+  D(printf("Worst allocation time (microseconds)): %d\n", (int) worstMallocTime));
+  D(printf("Worst free time (microseconds)): %d\n\n", (int) worstFreeTime));
 }
 
 #endif // KMA_RM
